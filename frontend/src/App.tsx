@@ -1,11 +1,6 @@
 import {useEffect, useState} from "react";
 
-import {DiscoveryLane} from "./discovery/DiscoveryLane";
-import {
-  ingestConfiguredSources,
-  loadDiscoveredJobs,
-} from "./discovery/discoveryClient";
-import type {DiscoveredJob} from "./discovery/types";
+import {DiscoveryDashboard} from "./discovery/DiscoveryDashboard";
 import {ProfileEditor} from "./profile/ProfileEditor";
 import {loadProfile, saveProfile} from "./profile/profileClient";
 import type {CanonicalProfile, SavedProfile} from "./profile/types";
@@ -14,8 +9,6 @@ export function App() {
   const [savedProfile, setSavedProfile] = useState<SavedProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [discoveredJobs, setDiscoveredJobs] = useState<DiscoveredJob[]>([]);
-  const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,17 +29,6 @@ export function App() {
           setLoading(false);
         }
       });
-    void loadDiscoveredJobs()
-      .then((jobs) => {
-        if (active) {
-          setDiscoveredJobs(jobs);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (active) {
-          setError(reason instanceof Error ? reason.message : "Could not load discovered roles.");
-        }
-      });
     return () => {
       active = false;
     };
@@ -65,19 +47,6 @@ export function App() {
     }
   };
 
-  const ingest = async () => {
-    setIngesting(true);
-    setError(null);
-    try {
-      await ingestConfiguredSources();
-      setDiscoveredJobs(await loadDiscoveredJobs());
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not ingest configured sources.");
-    } finally {
-      setIngesting(false);
-    }
-  };
-
   return (
     <>
       <header className="site-header">
@@ -87,7 +56,7 @@ export function App() {
         <span className="local-badge">Local only</span>
       </header>
       <main>
-        <DiscoveryLane jobs={discoveredJobs} ingesting={ingesting} onIngest={ingest} />
+        <DiscoveryDashboard />
         <div className="page-heading">
           <p className="eyebrow">Source of truth</p>
           <h1>Canonical profile</h1>

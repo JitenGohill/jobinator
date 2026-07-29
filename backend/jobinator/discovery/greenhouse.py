@@ -42,58 +42,70 @@ class _GreenhouseResponse(BaseModel):
 
 class _PostingTextParser(HTMLParser):
     _REQUIREMENT_HEADINGS = ("requirement", "qualification", "what we're looking for")
+    _BLOCK_TAGS = {"div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "p"}
 
     def __init__(self) -> None:
         super().__init__()
         self.lines: list[str] = []
         self.requirements: list[str] = []
+        self._line_parts: list[str] = []
         self._heading_parts: list[str] | None = None
-        self._paragraph_parts: list[str] | None = None
+        self._strong_parts: list[str] | None = None
         self._list_item_parts: list[str] | None = None
         self._current_heading = ""
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         del attrs
+        if tag in self._BLOCK_TAGS:
+            self._flush_line()
         if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
             self._heading_parts = []
-        elif tag == "p":
-            self._paragraph_parts = []
         elif tag == "li":
             self._list_item_parts = []
+        elif tag == "strong":
+            self._strong_parts = []
+        elif tag == "br":
+            self._flush_line()
 
     def handle_data(self, data: str) -> None:
+        self._line_parts.append(data)
         if self._heading_parts is not None:
             self._heading_parts.append(data)
-        if self._paragraph_parts is not None:
-            self._paragraph_parts.append(data)
+        if self._strong_parts is not None:
+            self._strong_parts.append(data)
         if self._list_item_parts is not None:
             self._list_item_parts.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         if tag in {"h1", "h2", "h3", "h4", "h5", "h6"} and self._heading_parts is not None:
             heading = self._clean(self._heading_parts)
-            self._append_line(heading)
             self._current_heading = heading.lower()
             self._heading_parts = None
-        elif tag == "p" and self._paragraph_parts is not None:
-            self._append_line(self._clean(self._paragraph_parts))
-            self._paragraph_parts = None
         elif tag == "li" and self._list_item_parts is not None:
             item = self._clean(self._list_item_parts)
-            self._append_line(item)
             if item and any(
                 marker in self._current_heading for marker in self._REQUIREMENT_HEADINGS
             ):
                 self.requirements.append(item)
             self._list_item_parts = None
+        elif tag == "strong" and self._strong_parts is not None:
+            emphasized_text = self._clean(self._strong_parts)
+            if any(marker in emphasized_text.lower() for marker in self._REQUIREMENT_HEADINGS):
+                self._current_heading = emphasized_text.lower()
+            self._strong_parts = None
+
+        if tag in self._BLOCK_TAGS:
+            self._flush_line()
 
     @staticmethod
     def _clean(parts: list[str]) -> str:
         return " ".join(" ".join(parts).split())
 
-    def _append_line(self, value: str) -> None:
+    def _flush_line(self) -> None:
+        value = self._clean(self._line_parts)
         if value:
             self.lines.append(value)
+        self._line_parts = []
 
 
 class GreenhouseAdapter:
@@ -118,10 +130,19 @@ class GreenhouseAdapter:
 
         try:
             payload: Any = response.json()
+            if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
+                raise SourceNormalizationError("Greenhouse returned an invalid posting.")
+            raw_jobs = payload["jobs"]
+            if not all(isinstance(raw_job, dict) for raw_job in raw_jobs):
+                raise SourceNormalizationError("Greenhouse returned an invalid posting.")
             greenhouse_response = _GreenhouseResponse.model_validate(payload)
             return [
-                self._normalize(job, source, fetched_at)
-                for job in greenhouse_response.jobs
+                self._normalize(job, raw_job, source, fetched_at)
+                for job, raw_job in zip(
+                    greenhouse_response.jobs,
+                    raw_jobs,
+                    strict=True,
+                )
             ]
         except (ValueError, ValidationError) as error:
             raise SourceNormalizationError("Greenhouse returned an invalid posting.") from error
@@ -129,6 +150,7 @@ class GreenhouseAdapter:
     @staticmethod
     def _normalize(
         job: _GreenhouseJob,
+        raw_posting: dict[str, Any],
         source: SourceConfiguration,
         fetched_at: datetime,
     ) -> JobSnapshot:
@@ -145,5 +167,5 @@ class GreenhouseAdapter:
             source_platform="greenhouse",
             ats_posting_id=str(job.id) if job.id is not None else None,
             canonical_url=job.absolute_url,
-            raw_posting=job.model_dump(mode="json"),
+            raw_posting=raw_posting,
         )

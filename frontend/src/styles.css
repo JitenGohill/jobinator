@@ -75,6 +75,10 @@ main {
   background: #ebe9e2;
 }
 
+.discovery-error {
+  margin-bottom: 16px;
+}
+
 .lane-heading,
 .job-card-heading {
   display: flex;

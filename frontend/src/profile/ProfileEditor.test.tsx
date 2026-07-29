@@ -10,17 +10,12 @@ afterEach(() => {
 });
 
 test("user can create a structured canonical profile", async () => {
-  const fetchMock = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(new Response(JSON.stringify({detail: "not found"}), {status: 404}))
-    .mockResolvedValueOnce(
-      new Response(JSON.stringify([]), {
-        status: 200,
-        headers: {"Content-Type": "application/json"},
-      }),
-    )
-    .mockResolvedValueOnce(
-      new Response(
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if (input === "/api/discovery/jobs") {
+      return new Response(JSON.stringify([]), {status: 200});
+    }
+    if (input === "/api/profile" && init?.method === "PUT") {
+      return new Response(
         JSON.stringify({
           profile: {
             base_cv: "Backend engineer",
@@ -38,8 +33,10 @@ test("user can create a structured canonical profile", async () => {
           updated_at: "2026-07-29T12:00:00Z",
         }),
         {status: 200, headers: {"Content-Type": "application/json"}},
-      ),
-    );
+      );
+    }
+    return new Response(JSON.stringify({detail: "not found"}), {status: 404});
+  });
   const user = userEvent.setup();
 
   render(<App />);
@@ -69,7 +66,11 @@ test("user can create a structured canonical profile", async () => {
   await user.click(screen.getByRole("button", {name: "Save profile"}));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  const saveRequest = fetchMock.mock.calls[2];
+  const saveRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+  expect(saveRequest).toBeDefined();
+  if (!saveRequest) {
+    throw new Error("Expected a profile save request.");
+  }
   expect(saveRequest[0]).toBe("/api/profile");
   expect(JSON.parse(String(saveRequest[1]?.body))).toEqual({
     expected_version: null,
@@ -102,34 +103,29 @@ test("user can view and update a saved profile", async () => {
     writing_samples: [],
     reusable_stories: [],
   };
-  const fetchMock = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          profile: existingProfile,
-          version: 4,
-          updated_at: "2026-07-29T12:00:00Z",
-        }),
-        {status: 200, headers: {"Content-Type": "application/json"}},
-      ),
-    )
-    .mockResolvedValueOnce(
-      new Response(JSON.stringify([]), {
-        status: 200,
-        headers: {"Content-Type": "application/json"},
-      }),
-    )
-    .mockResolvedValueOnce(
-      new Response(
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if (input === "/api/discovery/jobs") {
+      return new Response(JSON.stringify([]), {status: 200});
+    }
+    if (input === "/api/profile" && init?.method === "PUT") {
+      return new Response(
         JSON.stringify({
           profile: {...existingProfile, base_cv: "Updated CV"},
           version: 5,
           updated_at: "2026-07-29T12:05:00Z",
         }),
         {status: 200, headers: {"Content-Type": "application/json"}},
-      ),
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        profile: existingProfile,
+        version: 4,
+        updated_at: "2026-07-29T12:00:00Z",
+      }),
+      {status: 200, headers: {"Content-Type": "application/json"}},
     );
+  });
   const user = userEvent.setup();
 
   render(<App />);
@@ -141,7 +137,12 @@ test("user can view and update a saved profile", async () => {
   await user.click(screen.getByRole("button", {name: "Save profile"}));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toMatchObject({
+  const saveRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+  expect(saveRequest).toBeDefined();
+  if (!saveRequest) {
+    throw new Error("Expected a profile save request.");
+  }
+  expect(JSON.parse(String(saveRequest[1]?.body))).toMatchObject({
     expected_version: 4,
     profile: {base_cv: "Updated CV"},
   });
