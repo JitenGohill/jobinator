@@ -131,6 +131,65 @@ main {
   gap: 14px;
 }
 
+.screening-lanes {
+  display: grid;
+  gap: 18px;
+}
+
+.screening-lane {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #d8d5cb;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 42%);
+}
+
+.screening-lane-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.screening-lane-heading h3 {
+  margin: 0;
+  color: #172554;
+  font-size: 1rem;
+}
+
+.screening-lane-heading span {
+  min-width: 28px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #475569;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.screening-lane-eligible {
+  border-left: 4px solid #16a34a;
+}
+
+.screening-lane-stretch {
+  border-left: 4px solid #2563eb;
+}
+
+.screening-lane-maybe {
+  border-left: 4px solid #d97706;
+}
+
+.screening-lane-rejected {
+  border-left: 4px solid #dc2626;
+}
+
+.empty-screening-lane {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
 .job-card {
   padding: 24px;
   border: 1px solid #dedbd2;
@@ -146,7 +205,7 @@ main {
   font-weight: 700;
 }
 
-.job-card h3 {
+.job-card h4 {
   margin: 0;
   color: #172554;
   font-size: 1.25rem;
@@ -165,17 +224,26 @@ main {
   white-space: pre-line;
 }
 
-.job-requirements h4 {
+.job-requirements h5,
+.screening-reasons h5 {
   margin: 0 0 8px;
   color: #334155;
   font-size: 0.86rem;
 }
 
-.job-requirements ul {
+.job-requirements ul,
+.screening-reasons ul {
   margin: 0;
   padding-left: 20px;
   color: #475569;
   line-height: 1.6;
+}
+
+.screening-reasons {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: #f8fafc;
 }
 
 .job-meta {

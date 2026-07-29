@@ -1,4 +1,4 @@
-import type {DiscoveredJob} from "./types";
+import type {DiscoveredJob, ScreeningLane} from "./types";
 
 interface DiscoveryLaneProps {
   jobs: DiscoveredJob[];
@@ -6,14 +6,21 @@ interface DiscoveryLaneProps {
   onIngest: () => Promise<void>;
 }
 
+const screeningLanes: {lane: ScreeningLane; label: string}[] = [
+  {lane: "eligible", label: "Eligible"},
+  {lane: "stretch", label: "Stretch"},
+  {lane: "maybe", label: "Maybe"},
+  {lane: "rejected", label: "Rejected"},
+];
+
 export function DiscoveryLane({jobs, ingesting, onIngest}: DiscoveryLaneProps) {
   return (
     <section className="discovery-lane" aria-labelledby="discovered-heading">
       <div className="lane-heading">
         <div>
           <p className="eyebrow">Opportunity pipeline</p>
-          <h2 id="discovered-heading">Discovered</h2>
-          <p>Immutable role snapshots captured from your configured job sources.</p>
+          <h2 id="discovered-heading">Screened opportunities</h2>
+          <p>Normalized role snapshots grouped by eligibility before scoring.</p>
         </div>
         <button
           className="ingest-button"
@@ -28,37 +35,67 @@ export function DiscoveryLane({jobs, ingesting, onIngest}: DiscoveryLaneProps) {
       {jobs.length === 0 ? (
         <p className="empty-lane">No roles discovered yet.</p>
       ) : (
-        <div className="job-list">
-          {jobs.map((job) => (
-            <article className="job-card" key={job.id}>
-              <div className="job-card-heading">
-                <div>
-                  <p className="job-company">
-                    {job.company} · {job.location}
-                  </p>
-                  <h3>{job.title}</h3>
+        <div className="screening-lanes">
+          {screeningLanes.map(({lane, label}) => {
+            const laneJobs = jobs.filter((job) => job.screening.lane === lane);
+            return (
+              <section
+                className={`screening-lane screening-lane-${lane}`}
+                aria-labelledby={`screening-${lane}-heading`}
+                key={lane}
+              >
+                <div className="screening-lane-heading">
+                  <h3 id={`screening-${lane}-heading`}>{label}</h3>
+                  <span>{laneJobs.length}</span>
                 </div>
-                <a href={job.canonical_url} target="_blank" rel="noreferrer">
-                  View source
-                </a>
-              </div>
-              <p className="job-description">{job.description_text}</p>
-              {job.detected_requirements.length > 0 && (
-                <div className="job-requirements">
-                  <h4>Detected requirements</h4>
-                  <ul>
-                    {job.detected_requirements.map((requirement) => (
-                      <li key={requirement}>{requirement}</li>
+                {laneJobs.length === 0 ? (
+                  <p className="empty-screening-lane">No roles in this lane.</p>
+                ) : (
+                  <div className="job-list">
+                    {laneJobs.map((job) => (
+                      <article className="job-card" key={job.id}>
+                        <div className="job-card-heading">
+                          <div>
+                            <p className="job-company">
+                              {job.company} · {job.location}
+                            </p>
+                            <h4>{job.title}</h4>
+                          </div>
+                          <a href={job.canonical_url} target="_blank" rel="noreferrer">
+                            View source
+                          </a>
+                        </div>
+                        <div className="screening-reasons">
+                          <h5>Why {label.toLowerCase()}</h5>
+                          <ul>
+                            {job.screening.reasons.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <p className="job-description">{job.description_text}</p>
+                        {job.detected_requirements.length > 0 && (
+                          <div className="job-requirements">
+                            <h5>Detected requirements</h5>
+                            <ul>
+                              {job.detected_requirements.map((requirement) => (
+                                <li key={requirement}>{requirement}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <p className="job-meta">
+                          {job.source_platform} · fetched{" "}
+                          {new Date(job.fetched_at).toLocaleString()}
+                          {job.ats_posting_id ? ` · ATS ID ${job.ats_posting_id}` : ""}
+                        </p>
+                      </article>
                     ))}
-                  </ul>
-                </div>
-              )}
-              <p className="job-meta">
-                {job.source_platform} · fetched {new Date(job.fetched_at).toLocaleString()}
-                {job.ats_posting_id ? ` · ATS ID ${job.ats_posting_id}` : ""}
-              </p>
-            </article>
-          ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
     </section>

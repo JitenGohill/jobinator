@@ -10,7 +10,13 @@ export interface DiscoveredJob {
   source_platform: "greenhouse";
   ats_posting_id: string | null;
   canonical_url: string;
+  screening: {
+    lane: ScreeningLane;
+    reasons: string[];
+  };
 }
+
+export type ScreeningLane = "eligible" | "stretch" | "maybe" | "rejected";
 
 export interface IngestionResult {
   discovered: number;

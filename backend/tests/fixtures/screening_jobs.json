@@ -1,0 +1,353 @@
+{
+  "jobs": [
+    {
+      "id": 2001,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2001",
+      "title": "Junior Backend Engineer",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Build APIs and internal services with Python.</p><h3>Requirements</h3><ul><li>1 year of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2002,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2002",
+      "title": "Platform Engineer",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>Improve the platform used by product engineering teams.</p><h3>Requirements</h3><ul><li>3 years of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2003,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2003",
+      "title": "Junior Full-Stack Engineer",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>TechStaff is a staffing agency recruiting a direct-hire engineer for named client Northstar Health. Salary: $95,000-$115,000.</p><h3>Requirements</h3><ul><li>2 years of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2004,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2004",
+      "title": "Junior Internal Tools Engineer",
+      "location": {"name": "New York, NY"},
+      "content": "<p>The employer is confidential until interview. This direct-hire role has salary compensation and detailed requirements for building internal tools.</p><h3>Requirements</h3><ul><li>1 year of software engineering experience</li></ul>"
+    }
+  ],
+  "hard_reject_jobs": [
+    {
+      "id": 2101,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2101",
+      "title": "Junior Backend Engineer - Austin",
+      "location": {"name": "Austin, TX"},
+      "content": "<p>Build APIs with Python.</p><h3>Requirements</h3><ul><li>1 year of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2102,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2102",
+      "title": "Junior Backend Engineer - Relocation",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Build APIs with Python. Relocation to Seattle is required.</p><h3>Requirements</h3><ul><li>1 year of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2103,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2103",
+      "title": "Frontend Engineer",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Build browser interfaces with React and CSS.</p>"
+    },
+    {
+      "id": 2104,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2104",
+      "title": "Mobile Engineer",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>Build native iOS and Android applications.</p>"
+    },
+    {
+      "id": 2105,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2105",
+      "title": "QA Engineer",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>Own manual and automated quality assurance.</p>"
+    },
+    {
+      "id": 2106,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2106",
+      "title": "IT Support Specialist",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Resolve employee hardware and help-desk tickets.</p>"
+    },
+    {
+      "id": 2107,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2107",
+      "title": "Data Analyst",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>Build business intelligence reports.</p>"
+    },
+    {
+      "id": 2108,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2108",
+      "title": "Software Engineering Intern",
+      "location": {"name": "New York, NY"},
+      "content": "<p>This is an unpaid internship building internal software.</p>"
+    },
+    {
+      "id": 2109,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2109",
+      "title": "Backend Engineer IV",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>Build APIs.</p><h3>Requirements</h3><ul><li>4+ years of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2110,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2110",
+      "title": "Senior Backend Engineer",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Build APIs.</p>"
+    },
+    {
+      "id": 2111,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2111",
+      "title": "Staff Software Engineer",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>Lead architecture.</p>"
+    },
+    {
+      "id": 2112,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2112",
+      "title": "Principal Platform Engineer",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>Set technical strategy.</p>"
+    },
+    {
+      "id": 2113,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2113",
+      "title": "Engineering Manager",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Manage an engineering team.</p>"
+    },
+    {
+      "id": 2114,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2114",
+      "title": "Junior Backend Engineer - Unpaid",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>This is an unpaid role building APIs.</p>"
+    },
+    {
+      "id": 2115,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2115",
+      "title": "Junior Backend Engineer - Commission",
+      "location": {"name": "New York, NY"},
+      "content": "<p>This role is commission-only.</p>"
+    },
+    {
+      "id": 2116,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2116",
+      "title": "Junior Platform Engineer - Clearance",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>An active Secret security clearance is required.</p>"
+    },
+    {
+      "id": 2117,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2117",
+      "title": "Junior Backend Engineer - Closed",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Application deadline: July 1, 2026.</p>"
+    },
+    {
+      "id": 2118,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2118",
+      "title": "Junior Backend Engineer - Java",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>Professional experience with Java is required.</p>"
+    },
+    {
+      "id": 2119,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2119",
+      "title": "Junior Backend Engineer - Agency",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>This staffing agency is sourcing candidates for an unnamed contract role.</p>"
+    },
+    {
+      "id": 2120,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2120",
+      "title": "Junior Backend Engineer - Confidential",
+      "location": {"name": "New York, NY"},
+      "content": "<p>The employer is confidential. Build APIs for an undisclosed company.</p>"
+    }
+  ],
+  "junior_friendly_jobs": [
+    {
+      "id": 2201,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2201",
+      "title": "Entry-Level Internal Tools Engineer",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Build dependable internal tools. This is an entry-level opportunity.</p>"
+    },
+    {
+      "id": 2202,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2202",
+      "title": "New Grad AI Applications Engineer",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>Ship AI-adjacent product features in our new grad program.</p>"
+    },
+    {
+      "id": 2203,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2203",
+      "title": "Software Engineer Apprentice",
+      "location": {"name": "Remote - US"},
+      "content": "<p>Join our paid software engineering apprenticeship.</p>"
+    },
+    {
+      "id": 2204,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2204",
+      "title": "Backend Engineer - Equivalent Experience",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>Build APIs.</p><h3>Requirements</h3><ul><li>5 years of software engineering experience; equivalent internship experience accepted</li></ul>"
+    },
+    {
+      "id": 2205,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2205",
+      "title": "Junior Full-Stack Engineer - Zero to Two",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Build product features.</p><h3>Requirements</h3><ul><li>0-2 years of software engineering experience</li></ul>"
+    }
+  ],
+  "review_cases": [
+    {
+      "id": 2301,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2301",
+      "title": "Account Executive",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Own enterprise software sales.</p>"
+    },
+    {
+      "id": 2302,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2302",
+      "title": "Junior Full-Stack / Frontend Engineer",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>Build React interfaces and Python APIs.</p>"
+    },
+    {
+      "id": 2303,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2303",
+      "title": "Junior Backend Engineer - Benefits",
+      "location": {"name": "Remote - USA"},
+      "content": "<p>This paid role includes paid parental leave and optional unpaid leave.</p>"
+    },
+    {
+      "id": 2304,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2304",
+      "title": "Software Engineer - Senior Scope",
+      "location": {"name": "New York, NY"},
+      "content": "<p>This is a senior-level role owning architecture.</p>"
+    },
+    {
+      "id": 2305,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2305",
+      "title": "Junior Platform Engineer - TS/SCI",
+      "location": {"name": "Remote - US"},
+      "content": "<p>A current TS/SCI clearance is required.</p>"
+    },
+    {
+      "id": 2306,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2306",
+      "title": "Junior Backend Engineer - Apply By",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>Apply by 2026-07-01.</p>"
+    },
+    {
+      "id": 2307,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2307",
+      "title": "Junior Backend Engineer - Professional Java",
+      "location": {"name": "New York, NY"},
+      "content": "<p>3 years of professional Java experience is required.</p>"
+    },
+    {
+      "id": 2308,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2308",
+      "title": "Junior Backend Engineer - Staffing Firm",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>Our staffing firm is filling an unnamed contract role.</p>"
+    },
+    {
+      "id": 2309,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2309",
+      "title": "Junior Backend Engineer - Recruiting Agency",
+      "location": {"name": "New York, NY"},
+      "content": "<p>We are a recruiting agency filling a direct hire role for client Northstar Health. Salary range: $95,000-$115,000.</p><h3>Requirements</h3><ul><li>1 year of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2310,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2310",
+      "title": "Junior Backend Engineer - Undisclosed Client",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>The client is undisclosed. Build APIs for a company not disclosed.</p>"
+    },
+    {
+      "id": 2311,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2311",
+      "title": "Entry-Level Software Development Engineer I",
+      "location": {"name": "New York, NY"},
+      "content": "<p>Build backend APIs and internal services in an entry-level role.</p>"
+    },
+    {
+      "id": 2312,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2312",
+      "title": "Software Engineer - Product",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>This is a mobile-only role building native iOS applications.</p>"
+    },
+    {
+      "id": 2313,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2313",
+      "title": "Frontend & Backend Software Engineer",
+      "location": {"name": "Remote - United States"},
+      "content": "<p>Build browser interfaces and Python APIs.</p><h3>Requirements</h3><ul><li>2 years of software engineering experience</li></ul>"
+    },
+    {
+      "id": 2314,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2314",
+      "title": "Junior Backend Engineer - Confidential Direct Hire",
+      "location": {"name": "New York, NY"},
+      "content": "<p>The employer is confidential until interview. This is a direct hire role with salary range $100,000-$120,000.</p><h3>Requirements</h3><ul><li>1 year of software engineering experience</li><li>Professional Python experience</li></ul>"
+    },
+    {
+      "id": 2315,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2315",
+      "title": "Junior Backend Engineer - Remote Only",
+      "location": {"name": "Remote"},
+      "content": "<p>This remote role is limited to candidates based in the United States.</p>"
+    },
+    {
+      "id": 2316,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2316",
+      "title": "Junior Backend Engineer - No Relocation",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>No relocation is required for this role.</p>"
+    },
+    {
+      "id": 2317,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2317",
+      "title": "Software Engineer - Web Product",
+      "location": {"name": "New York, NY"},
+      "content": "<p>This is a frontend-only role focused exclusively on browser interfaces.</p>"
+    },
+    {
+      "id": 2318,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2318",
+      "title": "Backend Engineer - Experience In",
+      "location": {"name": "Chicago, IL"},
+      "content": "<p>4+ years' experience in software engineering is required.</p>"
+    },
+    {
+      "id": 2319,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2319",
+      "title": "Backend Engineer - Experience Developing",
+      "location": {"name": "Remote - US"},
+      "content": "<p>5 years of experience developing backend services is required.</p>"
+    },
+    {
+      "id": 2320,
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/2320",
+      "title": "Backend Engineer - Years In Development",
+      "location": {"name": "New York, NY"},
+      "content": "<p>4 years in software development is required.</p>"
+    }
+  ]
+}

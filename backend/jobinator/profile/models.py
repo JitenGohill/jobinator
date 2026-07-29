@@ -89,6 +89,16 @@ class CanonicalProfile(ProfileModel):
     writing_samples: list[WritingSample]
     reusable_stories: list[ReusableStory]
 
+    def known_technology_names(self) -> set[str]:
+        return {
+            value.lower()
+            for value in (
+                *self.preferred_stack,
+                *(skill.name for skill in self.skills),
+                *(technology for project in self.projects for technology in project.technologies),
+            )
+        }
+
 
 class SavedProfile(ProfileModel):
     profile: CanonicalProfile

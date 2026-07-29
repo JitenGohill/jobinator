@@ -8,8 +8,15 @@ from typing import Literal, Protocol, cast
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from jobinator.database import JobSnapshotRow
-from jobinator.discovery.models import IngestionResult, JobSnapshot, SourceConfiguration
+from jobinator.database import CanonicalProfileRow, JobSnapshotRow
+from jobinator.discovery.models import (
+    IngestionResult,
+    JobSnapshot,
+    ScreenedJob,
+    SourceConfiguration,
+)
+from jobinator.discovery.screening import ScreeningPolicy
+from jobinator.profile.models import CanonicalProfile
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +87,7 @@ class DiscoveryModule:
                 )
         return IngestionResult(discovered=len(snapshots))
 
-    def list_discovered(self) -> list[JobSnapshot]:
+    def list_discovered(self) -> list[ScreenedJob]:
         with self._sessions() as session:
             rows = session.scalars(
                 select(JobSnapshotRow).order_by(
@@ -88,7 +95,21 @@ class DiscoveryModule:
                     JobSnapshotRow.id.desc(),
                 )
             ).all()
-            return [self._to_snapshot(row) for row in rows]
+            profile_row = session.get(CanonicalProfileRow, 1)
+            profile = (
+                CanonicalProfile.model_validate(profile_row.payload)
+                if profile_row is not None
+                else None
+            )
+            policy = ScreeningPolicy(profile)
+            snapshots = [self._to_snapshot(row) for row in rows]
+            return [
+                ScreenedJob(
+                    **snapshot.model_dump(),
+                    screening=policy.screen(snapshot),
+                )
+                for snapshot in snapshots
+            ]
 
     @staticmethod
     def _to_snapshot(row: JobSnapshotRow) -> JobSnapshot:

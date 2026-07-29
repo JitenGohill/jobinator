@@ -19,6 +19,51 @@ def load_greenhouse_fixture() -> dict[str, Any]:
     return json.loads(fixture_path.read_text())
 
 
+def load_screening_fixture() -> dict[str, Any]:
+    fixture_path = Path(__file__).parent / "fixtures" / "screening_jobs.json"
+    return json.loads(fixture_path.read_text())
+
+
+async def screen_fixture_jobs(
+    tmp_path: Path,
+    fixture_group: str = "jobs",
+    *,
+    with_profile: bool = False,
+) -> list[dict[str, Any]]:
+    fixture = load_screening_fixture()
+    fixture["jobs"] = fixture[fixture_group]
+    source_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=fixture))
+    )
+    app = create_app(
+        database_url=f"sqlite:///{tmp_path / 'jobinator.db'}",
+        settings=Settings(
+            greenhouse_board_token="acme",
+            greenhouse_company="Acme Corp",
+        ),
+        source_client=source_client,
+        clock=lambda: datetime(2026, 7, 29, 12, 0, tzinfo=timezone.utc),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        if with_profile:
+            profile = json.loads(
+                (Path(__file__).parent / "fixtures" / "profile.json").read_text()
+            )
+            profile_response = await client.put(
+                "/api/profile",
+                json={"profile": profile, "expected_version": None},
+            )
+            assert profile_response.status_code == 200
+        ingestion_response = await client.post("/api/discovery/ingest")
+        response = await client.get("/api/discovery/jobs")
+
+    await source_client.aclose()
+    assert ingestion_response.status_code == 200
+    assert response.status_code == 200
+    return response.json()
+
+
 @pytest.mark.anyio
 async def test_configured_greenhouse_board_is_ingested_as_a_discovered_snapshot(
     tmp_path: Path,
@@ -72,6 +117,14 @@ async def test_configured_greenhouse_board_is_ingested_as_a_discovered_snapshot(
             "ats_posting_id": "12345",
             "canonical_url": "https://boards.greenhouse.io/acme/jobs/12345",
             "raw_posting": fixture["jobs"][0],
+            "screening": {
+                "lane": "eligible",
+                "reasons": [
+                    "Target role type: software engineering.",
+                    "Target location: New York.",
+                    "Junior-friendly role: junior.",
+                ],
+            },
         }
     ]
 
@@ -122,3 +175,210 @@ async def test_ingestion_failure_preserves_snapshots_without_logging_upstream_re
     }
     assert len(discovered_response.json()) == 1
     assert "private-upstream-response" not in caplog.text
+
+
+@pytest.mark.anyio
+async def test_discovered_roles_are_screened_into_eligible_stretch_and_maybe_lanes(
+    tmp_path: Path,
+) -> None:
+    jobs = await screen_fixture_jobs(tmp_path)
+    screening_results = {
+        job["title"]: (job["screening"]["lane"], job["screening"]["reasons"])
+        for job in jobs
+    }
+    assert screening_results == {
+        "Junior Backend Engineer": (
+            "eligible",
+            [
+                "Target role type: backend engineering.",
+                "Target location: New York.",
+                "Junior-friendly experience requirement: 1 year.",
+            ],
+        ),
+        "Platform Engineer": (
+            "stretch",
+            [
+                "Target role type: platform engineering.",
+                "Target location: US-based remote.",
+                "Stretch experience requirement: 3 years.",
+            ],
+        ),
+        "Junior Full-Stack Engineer": (
+            "maybe",
+            [
+                    "Target role type: full-stack engineering.",
+                    "Target location: Chicago.",
+                    "Junior-friendly experience requirement: 2 years.",
+                    "Staffing-agency listing retained for manual review because it is a "
+                    "direct-hire role with a named client and compensation.",
+            ],
+        ),
+        "Junior Internal Tools Engineer": (
+            "maybe",
+            [
+                    "Target role type: internal-tools engineering.",
+                    "Target location: New York.",
+                    "Junior-friendly experience requirement: 1 year.",
+                    "Unclear-employer listing retained for manual review because it is a "
+                    "direct-hire role with compensation and detailed requirements.",
+            ],
+        ),
+    }
+
+
+@pytest.mark.anyio
+async def test_discovered_roles_expose_every_hard_reject_category(tmp_path: Path) -> None:
+    screened_jobs = await screen_fixture_jobs(
+        tmp_path,
+        "hard_reject_jobs",
+        with_profile=True,
+    )
+    expected_reasons = {
+        "Junior Backend Engineer - Austin": "Outside target locations: Austin, TX.",
+        "Junior Backend Engineer - Relocation": "Requires relocation outside New York or Chicago.",
+        "Frontend Engineer": "Excluded role type: pure frontend.",
+        "Mobile Engineer": "Excluded role type: mobile.",
+        "QA Engineer": "Excluded role type: QA.",
+        "IT Support Specialist": "Excluded role type: IT support.",
+        "Data Analyst": "Excluded role type: data analyst.",
+        "Software Engineering Intern": "Excluded role type: unpaid internship.",
+        "Backend Engineer IV": (
+            "Experience requirement is 4+ years without an accepted junior-equivalent path."
+        ),
+        "Senior Backend Engineer": "Excluded seniority: senior role.",
+        "Staff Software Engineer": "Excluded seniority: staff role.",
+        "Principal Platform Engineer": "Excluded seniority: principal role.",
+        "Engineering Manager": "Excluded seniority: manager role.",
+        "Junior Backend Engineer - Unpaid": "Compensation is explicitly unpaid.",
+        "Junior Backend Engineer - Commission": "Compensation is commission-only.",
+        "Junior Platform Engineer - Clearance": "Requires an active security clearance.",
+        "Junior Backend Engineer - Closed": "Application deadline has passed.",
+        "Junior Backend Engineer - Java": (
+            "Requires professional Java experience that is absent from the canonical profile."
+        ),
+        "Junior Backend Engineer - Agency": "Staffing-agency listing rejected by default.",
+        "Junior Backend Engineer - Confidential": "Employer identity is unclear.",
+    }
+    jobs = {job["title"]: job["screening"] for job in screened_jobs}
+    assert jobs.keys() == expected_reasons.keys()
+    for title, reason in expected_reasons.items():
+        assert jobs[title]["lane"] == "rejected", title
+        assert reason in jobs[title]["reasons"], title
+
+
+@pytest.mark.anyio
+async def test_junior_friendly_role_types_and_equivalent_experience_paths_remain_eligible(
+    tmp_path: Path,
+) -> None:
+    screened_jobs = await screen_fixture_jobs(tmp_path, "junior_friendly_jobs")
+    jobs = {job["title"]: job["screening"] for job in screened_jobs}
+    assert jobs == {
+        "Entry-Level Internal Tools Engineer": {
+            "lane": "eligible",
+            "reasons": [
+                "Target role type: internal-tools engineering.",
+                "Target location: New York.",
+                "Junior-friendly role: entry-level.",
+            ],
+        },
+        "New Grad AI Applications Engineer": {
+            "lane": "eligible",
+            "reasons": [
+                "Target role type: AI-adjacent engineering.",
+                "Target location: Chicago.",
+                "Junior-friendly role: new grad.",
+            ],
+        },
+        "Software Engineer Apprentice": {
+            "lane": "eligible",
+            "reasons": [
+                "Target role type: software engineering.",
+                "Target location: US-based remote.",
+                "Junior-friendly role: apprenticeship.",
+            ],
+        },
+        "Backend Engineer - Equivalent Experience": {
+            "lane": "stretch",
+            "reasons": [
+                "Target role type: backend engineering.",
+                "Target location: US-based remote.",
+                "Stretch experience requirement: 5 years, with an accepted junior-equivalent path.",
+            ],
+        },
+        "Junior Full-Stack Engineer - Zero to Two": {
+            "lane": "eligible",
+            "reasons": [
+                "Target role type: full-stack engineering.",
+                "Target location: New York.",
+                "Junior-friendly experience requirement: 2 years.",
+            ],
+        },
+    }
+
+
+@pytest.mark.anyio
+async def test_screening_handles_realistic_policy_wording_without_false_rejects(
+    tmp_path: Path,
+) -> None:
+    screened_jobs = await screen_fixture_jobs(
+        tmp_path,
+        "review_cases",
+        with_profile=True,
+    )
+    jobs = {job["title"]: job["screening"] for job in screened_jobs}
+    assert jobs["Account Executive"] == {
+        "lane": "rejected",
+        "reasons": [
+            "Target location: New York.",
+            "Outside target software engineering role types.",
+        ],
+    }
+    assert jobs["Junior Full-Stack / Frontend Engineer"]["lane"] == "eligible"
+    assert jobs["Junior Backend Engineer - Benefits"]["lane"] == "eligible"
+    assert jobs["Software Engineer - Senior Scope"]["lane"] == "rejected"
+    assert "Excluded seniority: senior role." in jobs["Software Engineer - Senior Scope"]["reasons"]
+    assert jobs["Junior Platform Engineer - TS/SCI"]["lane"] == "rejected"
+    assert "Requires an active security clearance." in jobs[
+        "Junior Platform Engineer - TS/SCI"
+    ]["reasons"]
+    assert jobs["Junior Backend Engineer - Apply By"]["lane"] == "rejected"
+    assert "Application deadline has passed." in jobs[
+        "Junior Backend Engineer - Apply By"
+    ]["reasons"]
+    assert jobs["Junior Backend Engineer - Professional Java"]["lane"] == "rejected"
+    assert (
+        "Requires professional Java experience that is absent from the canonical profile."
+        in jobs["Junior Backend Engineer - Professional Java"]["reasons"]
+    )
+    assert jobs["Junior Backend Engineer - Staffing Firm"]["lane"] == "rejected"
+    assert "Staffing-agency listing rejected by default." in jobs[
+        "Junior Backend Engineer - Staffing Firm"
+    ]["reasons"]
+    assert jobs["Junior Backend Engineer - Recruiting Agency"]["lane"] == "maybe"
+    assert jobs["Junior Backend Engineer - Undisclosed Client"]["lane"] == "rejected"
+    assert "Employer identity is unclear." in jobs[
+        "Junior Backend Engineer - Undisclosed Client"
+    ]["reasons"]
+    assert jobs["Entry-Level Software Development Engineer I"]["lane"] == "eligible"
+    assert jobs["Software Engineer - Product"]["lane"] == "rejected"
+    assert "Excluded role type: mobile." in jobs[
+        "Software Engineer - Product"
+    ]["reasons"]
+    assert jobs["Software Engineer - Web Product"]["lane"] == "rejected"
+    assert "Excluded role type: pure frontend." in jobs[
+        "Software Engineer - Web Product"
+    ]["reasons"]
+    assert jobs["Frontend & Backend Software Engineer"]["lane"] == "eligible"
+    assert jobs["Junior Backend Engineer - Confidential Direct Hire"]["lane"] == "maybe"
+    assert jobs["Junior Backend Engineer - Remote Only"]["lane"] == "eligible"
+    assert jobs["Junior Backend Engineer - No Relocation"]["lane"] == "eligible"
+    for title in (
+        "Backend Engineer - Experience In",
+        "Backend Engineer - Experience Developing",
+        "Backend Engineer - Years In Development",
+    ):
+        assert jobs[title]["lane"] == "rejected"
+        assert (
+            "Experience requirement is 4+ years without an accepted junior-equivalent path."
+            in jobs[title]["reasons"]
+        )

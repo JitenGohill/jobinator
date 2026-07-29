@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+ScreeningLane = Literal["eligible", "stretch", "maybe", "rejected"]
+
 
 class DiscoveryModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -29,6 +31,15 @@ class JobSnapshot(DiscoveryModel):
     ats_posting_id: str | None
     canonical_url: str
     raw_posting: dict[str, Any]
+
+
+class ScreeningResult(DiscoveryModel):
+    lane: ScreeningLane
+    reasons: list[str]
+
+
+class ScreenedJob(JobSnapshot):
+    screening: ScreeningResult
 
 
 class IngestionResult(DiscoveryModel):
