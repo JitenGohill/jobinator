@@ -1,0 +1,55 @@
+{
+  "base_cv": "Junior software engineer focused on reliable backend systems.",
+  "projects": [
+    {
+      "name": "Queue Lens",
+      "summary": "Built a transparent job-ranking tool.",
+      "highlights": ["Designed deterministic scoring", "Added fixture-driven tests"],
+      "technologies": ["Python", "SQLite"],
+      "link": "https://example.com/queue-lens"
+    }
+  ],
+  "skills": [
+    {"name": "Python", "proficiency": "advanced"},
+    {"name": "TypeScript", "proficiency": "intermediate"}
+  ],
+  "preferred_stack": ["Python", "FastAPI", "React", "TypeScript"],
+  "education": [
+    {
+      "institution": "Example University",
+      "credential": "BSc",
+      "field_of_study": "Computer Science",
+      "start_date": "2020-09",
+      "end_date": "2024-05",
+      "highlights": ["Distributed systems capstone"]
+    }
+  ],
+  "work_history": [
+    {
+      "employer": "Example Labs",
+      "title": "Software Engineering Intern",
+      "start_date": "2023-06",
+      "end_date": "2023-09",
+      "highlights": ["Reduced a batch job runtime by 30%"]
+    }
+  ],
+  "links": [
+    {"label": "GitHub", "url": "https://github.com/example"}
+  ],
+  "constraints": ["US-based remote or New York", "No active clearance roles"],
+  "writing_samples": [
+    {
+      "title": "Cover letter sample",
+      "content": "I enjoy turning ambiguous workflows into dependable tools."
+    }
+  ],
+  "reusable_stories": [
+    {
+      "title": "Improving a slow import",
+      "situation": "A daily import exceeded its processing window.",
+      "task": "Find and remove the bottleneck.",
+      "action": "Profiled the pipeline and batched database writes.",
+      "result": "Runtime fell by 30%."
+    }
+  ]
+}
