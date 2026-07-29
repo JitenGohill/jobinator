@@ -60,7 +60,9 @@ async def test_configured_greenhouse_board_is_ingested_as_a_discovered_snapshot(
                 "Build dependable tools for our operations team.\n"
                 "What we're looking for\n"
                 "Experience with Python\n"
-                "Clear written communication"
+                "Clear written communication\n"
+                "Benefits\n"
+                "Health insurance"
             ),
             "detected_requirements": [
                 "Experience with Python",

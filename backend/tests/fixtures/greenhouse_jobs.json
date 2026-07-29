@@ -2,7 +2,7 @@
   "jobs": [
     {
       "absolute_url": "https://boards.greenhouse.io/acme/jobs/12345",
-      "content": "<div>Build dependable tools for our operations team.</div><p><strong>What we're looking for</strong></p><ul><li>Experience with Python</li><li>Clear written communication</li></ul>",
+      "content": "<div>Build dependable tools for our operations team.</div><p><strong>What we're looking for</strong></p><ul><li>Experience with Python</li><li>Clear written communication</li></ul><p><strong>Benefits</strong></p><ul><li>Health insurance</li></ul>",
       "id": 12345,
       "location": {
         "name": "New York, NY",

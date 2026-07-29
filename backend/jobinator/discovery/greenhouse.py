@@ -90,7 +90,7 @@ class _PostingTextParser(HTMLParser):
             self._list_item_parts = None
         elif tag == "strong" and self._strong_parts is not None:
             emphasized_text = self._clean(self._strong_parts)
-            if any(marker in emphasized_text.lower() for marker in self._REQUIREMENT_HEADINGS):
+            if self._list_item_parts is None:
                 self._current_heading = emphasized_text.lower()
             self._strong_parts = None
 
