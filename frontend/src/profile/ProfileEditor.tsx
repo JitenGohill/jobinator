@@ -3,14 +3,7 @@ import {useEffect, useState, type FormEvent, type ReactNode} from "react";
 import {
   emptyProfile,
   type CanonicalProfile,
-  type Education,
-  type ProfileLink,
-  type Project,
   type Proficiency,
-  type ReusableStory,
-  type Skill,
-  type WorkExperience,
-  type WritingSample,
 } from "./types";
 
 interface ProfileEditorProps {
@@ -81,6 +74,41 @@ function replaceAt<T>(items: T[], index: number, value: T): T[] {
   return items.map((item, itemIndex) => (itemIndex === index ? value : item));
 }
 
+type ProfileCollectionKey = {
+  [Key in keyof CanonicalProfile]: CanonicalProfile[Key] extends unknown[] ? Key : never;
+}[keyof CanonicalProfile];
+
+type ProfileCollectionItem<Key extends ProfileCollectionKey> =
+  CanonicalProfile[Key] extends Array<infer Item> ? Item : never;
+
+function replaceProfileItem<Key extends ProfileCollectionKey>(
+  profile: CanonicalProfile,
+  key: Key,
+  index: number,
+  value: ProfileCollectionItem<Key>,
+): CanonicalProfile {
+  const items = profile[key] as ProfileCollectionItem<Key>[];
+  return {...profile, [key]: replaceAt(items, index, value)};
+}
+
+function removeProfileItem<Key extends ProfileCollectionKey>(
+  profile: CanonicalProfile,
+  key: Key,
+  index: number,
+): CanonicalProfile {
+  const items = profile[key] as ProfileCollectionItem<Key>[];
+  return {...profile, [key]: removeAt(items, index)};
+}
+
+function appendProfileItem<Key extends ProfileCollectionKey>(
+  profile: CanonicalProfile,
+  key: Key,
+  value: ProfileCollectionItem<Key>,
+): CanonicalProfile {
+  const items = profile[key] as ProfileCollectionItem<Key>[];
+  return {...profile, [key]: [...items, value]};
+}
+
 export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorProps) {
   const [profile, setProfile] = useState<CanonicalProfile>(initialProfile ?? emptyProfile());
 
@@ -93,53 +121,23 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
     void onSave(cleanProfile(profile));
   };
 
-  const updateProject = (index: number, project: Project) => {
-    setProfile((current) => ({
-      ...current,
-      projects: replaceAt(current.projects, index, project),
-    }));
+  const updateItem = <Key extends ProfileCollectionKey>(
+    key: Key,
+    index: number,
+    value: ProfileCollectionItem<Key>,
+  ) => {
+    setProfile((current) => replaceProfileItem(current, key, index, value));
   };
 
-  const updateSkill = (index: number, skill: Skill) => {
-    setProfile((current) => ({
-      ...current,
-      skills: replaceAt(current.skills, index, skill),
-    }));
+  const removeItem = (key: ProfileCollectionKey, index: number) => {
+    setProfile((current) => removeProfileItem(current, key, index));
   };
 
-  const updateEducation = (index: number, education: Education) => {
-    setProfile((current) => ({
-      ...current,
-      education: replaceAt(current.education, index, education),
-    }));
-  };
-
-  const updateWork = (index: number, work: WorkExperience) => {
-    setProfile((current) => ({
-      ...current,
-      work_history: replaceAt(current.work_history, index, work),
-    }));
-  };
-
-  const updateLink = (index: number, link: ProfileLink) => {
-    setProfile((current) => ({
-      ...current,
-      links: replaceAt(current.links, index, link),
-    }));
-  };
-
-  const updateWritingSample = (index: number, sample: WritingSample) => {
-    setProfile((current) => ({
-      ...current,
-      writing_samples: replaceAt(current.writing_samples, index, sample),
-    }));
-  };
-
-  const updateStory = (index: number, story: ReusableStory) => {
-    setProfile((current) => ({
-      ...current,
-      reusable_stories: replaceAt(current.reusable_stories, index, story),
-    }));
+  const appendItem = <Key extends ProfileCollectionKey>(
+    key: Key,
+    value: ProfileCollectionItem<Key>,
+  ) => {
+    setProfile((current) => appendProfileItem(current, key, value));
   };
 
   return (
@@ -177,7 +175,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                     required
                     value={project.name}
                     onChange={(event) =>
-                      updateProject(index, {...project, name: event.target.value})
+                      updateItem("projects", index, {...project, name: event.target.value})
                     }
                   />
                 </label>
@@ -187,7 +185,10 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                     type="url"
                     value={project.link ?? ""}
                     onChange={(event) =>
-                      updateProject(index, {...project, link: event.target.value || null})
+                      updateItem("projects", index, {
+                        ...project,
+                        link: event.target.value || null,
+                      })
                     }
                   />
                 </label>
@@ -198,7 +199,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   rows={3}
                   value={project.summary}
                   onChange={(event) =>
-                    updateProject(index, {...project, summary: event.target.value})
+                    updateItem("projects", index, {...project, summary: event.target.value})
                   }
                 />
               </label>
@@ -208,7 +209,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   rows={3}
                   value={project.highlights.join("\n")}
                   onChange={(event) =>
-                    updateProject(index, {
+                    updateItem("projects", index, {
                       ...project,
                       highlights: editableLines(event.target.value),
                     })
@@ -220,7 +221,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                 <input
                   value={project.technologies.join(", ")}
                   onChange={(event) =>
-                    updateProject(index, {
+                    updateItem("projects", index, {
                       ...project,
                       technologies: editableCommas(event.target.value),
                     })
@@ -230,12 +231,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
               <button
                 className="remove-button"
                 type="button"
-                onClick={() =>
-                  setProfile((current) => ({
-                    ...current,
-                    projects: removeAt(current.projects, index),
-                  }))
-                }
+                onClick={() => removeItem("projects", index)}
               >
                 Remove project
               </button>
@@ -246,13 +242,13 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
           className="add-button"
           type="button"
           onClick={() =>
-            setProfile((current) => ({
-              ...current,
-              projects: [
-                ...current.projects,
-                {name: "", summary: "", highlights: [], technologies: [], link: null},
-              ],
-            }))
+            appendItem("projects", {
+              name: "",
+              summary: "",
+              highlights: [],
+              technologies: [],
+              link: null,
+            })
           }
         >
           Add project
@@ -272,7 +268,9 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                 <input
                   required
                   value={skill.name}
-                  onChange={(event) => updateSkill(index, {...skill, name: event.target.value})}
+                  onChange={(event) =>
+                    updateItem("skills", index, {...skill, name: event.target.value})
+                  }
                 />
               </label>
               <label>
@@ -280,7 +278,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                 <select
                   value={skill.proficiency}
                   onChange={(event) =>
-                    updateSkill(index, {
+                    updateItem("skills", index, {
                       ...skill,
                       proficiency: event.target.value as Proficiency,
                     })
@@ -295,12 +293,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
               <button
                 className="remove-button"
                 type="button"
-                onClick={() =>
-                  setProfile((current) => ({
-                    ...current,
-                    skills: removeAt(current.skills, index),
-                  }))
-                }
+                onClick={() => removeItem("skills", index)}
               >
                 Remove skill
               </button>
@@ -310,12 +303,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
         <button
           className="add-button"
           type="button"
-          onClick={() =>
-            setProfile((current) => ({
-              ...current,
-              skills: [...current.skills, {name: "", proficiency: "intermediate"}],
-            }))
-          }
+          onClick={() => appendItem("skills", {name: "", proficiency: "intermediate"})}
         >
           Add skill
         </button>
@@ -355,7 +343,10 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                     required
                     value={education.institution}
                     onChange={(event) =>
-                      updateEducation(index, {...education, institution: event.target.value})
+                      updateItem("education", index, {
+                        ...education,
+                        institution: event.target.value,
+                      })
                     }
                   />
                 </label>
@@ -364,7 +355,10 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   <input
                     value={education.credential}
                     onChange={(event) =>
-                      updateEducation(index, {...education, credential: event.target.value})
+                      updateItem("education", index, {
+                        ...education,
+                        credential: event.target.value,
+                      })
                     }
                   />
                 </label>
@@ -373,7 +367,10 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   <input
                     value={education.field_of_study}
                     onChange={(event) =>
-                      updateEducation(index, {...education, field_of_study: event.target.value})
+                      updateItem("education", index, {
+                        ...education,
+                        field_of_study: event.target.value,
+                      })
                     }
                   />
                 </label>
@@ -383,7 +380,10 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                     placeholder="YYYY-MM"
                     value={education.start_date}
                     onChange={(event) =>
-                      updateEducation(index, {...education, start_date: event.target.value})
+                      updateItem("education", index, {
+                        ...education,
+                        start_date: event.target.value,
+                      })
                     }
                   />
                 </label>
@@ -393,7 +393,10 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                     placeholder="YYYY-MM or present"
                     value={education.end_date}
                     onChange={(event) =>
-                      updateEducation(index, {...education, end_date: event.target.value})
+                      updateItem("education", index, {
+                        ...education,
+                        end_date: event.target.value,
+                      })
                     }
                   />
                 </label>
@@ -404,7 +407,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   rows={3}
                   value={education.highlights.join("\n")}
                   onChange={(event) =>
-                    updateEducation(index, {
+                    updateItem("education", index, {
                       ...education,
                       highlights: editableLines(event.target.value),
                     })
@@ -414,12 +417,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
               <button
                 className="remove-button"
                 type="button"
-                onClick={() =>
-                  setProfile((current) => ({
-                    ...current,
-                    education: removeAt(current.education, index),
-                  }))
-                }
+                onClick={() => removeItem("education", index)}
               >
                 Remove education
               </button>
@@ -430,20 +428,14 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
           className="add-button"
           type="button"
           onClick={() =>
-            setProfile((current) => ({
-              ...current,
-              education: [
-                ...current.education,
-                {
-                  institution: "",
-                  credential: "",
-                  field_of_study: "",
-                  start_date: "",
-                  end_date: "",
-                  highlights: [],
-                },
-              ],
-            }))
+            appendItem("education", {
+              institution: "",
+              credential: "",
+              field_of_study: "",
+              start_date: "",
+              end_date: "",
+              highlights: [],
+            })
           }
         >
           Add education
@@ -464,7 +456,12 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   <input
                     required
                     value={work.employer}
-                    onChange={(event) => updateWork(index, {...work, employer: event.target.value})}
+                    onChange={(event) =>
+                      updateItem("work_history", index, {
+                        ...work,
+                        employer: event.target.value,
+                      })
+                    }
                   />
                 </label>
                 <label>
@@ -472,7 +469,9 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   <input
                     required
                     value={work.title}
-                    onChange={(event) => updateWork(index, {...work, title: event.target.value})}
+                    onChange={(event) =>
+                      updateItem("work_history", index, {...work, title: event.target.value})
+                    }
                   />
                 </label>
                 <label>
@@ -480,7 +479,12 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   <input
                     placeholder="YYYY-MM"
                     value={work.start_date}
-                    onChange={(event) => updateWork(index, {...work, start_date: event.target.value})}
+                    onChange={(event) =>
+                      updateItem("work_history", index, {
+                        ...work,
+                        start_date: event.target.value,
+                      })
+                    }
                   />
                 </label>
                 <label>
@@ -488,7 +492,12 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   <input
                     placeholder="YYYY-MM or present"
                     value={work.end_date}
-                    onChange={(event) => updateWork(index, {...work, end_date: event.target.value})}
+                    onChange={(event) =>
+                      updateItem("work_history", index, {
+                        ...work,
+                        end_date: event.target.value,
+                      })
+                    }
                   />
                 </label>
               </div>
@@ -498,7 +507,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   rows={3}
                   value={work.highlights.join("\n")}
                   onChange={(event) =>
-                    updateWork(index, {
+                    updateItem("work_history", index, {
                       ...work,
                       highlights: editableLines(event.target.value),
                     })
@@ -508,12 +517,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
               <button
                 className="remove-button"
                 type="button"
-                onClick={() =>
-                  setProfile((current) => ({
-                    ...current,
-                    work_history: removeAt(current.work_history, index),
-                  }))
-                }
+                onClick={() => removeItem("work_history", index)}
               >
                 Remove work entry
               </button>
@@ -524,13 +528,13 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
           className="add-button"
           type="button"
           onClick={() =>
-            setProfile((current) => ({
-              ...current,
-              work_history: [
-                ...current.work_history,
-                {employer: "", title: "", start_date: "", end_date: "", highlights: []},
-              ],
-            }))
+            appendItem("work_history", {
+              employer: "",
+              title: "",
+              start_date: "",
+              end_date: "",
+              highlights: [],
+            })
           }
         >
           Add work entry
@@ -550,7 +554,9 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                 <input
                   required
                   value={link.label}
-                  onChange={(event) => updateLink(index, {...link, label: event.target.value})}
+                  onChange={(event) =>
+                    updateItem("links", index, {...link, label: event.target.value})
+                  }
                 />
               </label>
               <label>
@@ -559,18 +565,15 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   required
                   type="url"
                   value={link.url}
-                  onChange={(event) => updateLink(index, {...link, url: event.target.value})}
+                  onChange={(event) =>
+                    updateItem("links", index, {...link, url: event.target.value})
+                  }
                 />
               </label>
               <button
                 className="remove-button"
                 type="button"
-                onClick={() =>
-                  setProfile((current) => ({
-                    ...current,
-                    links: removeAt(current.links, index),
-                  }))
-                }
+                onClick={() => removeItem("links", index)}
               >
                 Remove link
               </button>
@@ -580,12 +583,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
         <button
           className="add-button"
           type="button"
-          onClick={() =>
-            setProfile((current) => ({
-              ...current,
-              links: [...current.links, {label: "", url: ""}],
-            }))
-          }
+          onClick={() => appendItem("links", {label: "", url: ""})}
         >
           Add link
         </button>
@@ -625,7 +623,10 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   required
                   value={sample.title}
                   onChange={(event) =>
-                    updateWritingSample(index, {...sample, title: event.target.value})
+                    updateItem("writing_samples", index, {
+                      ...sample,
+                      title: event.target.value,
+                    })
                   }
                 />
               </label>
@@ -635,19 +636,17 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   rows={6}
                   value={sample.content}
                   onChange={(event) =>
-                    updateWritingSample(index, {...sample, content: event.target.value})
+                    updateItem("writing_samples", index, {
+                      ...sample,
+                      content: event.target.value,
+                    })
                   }
                 />
               </label>
               <button
                 className="remove-button"
                 type="button"
-                onClick={() =>
-                  setProfile((current) => ({
-                    ...current,
-                    writing_samples: removeAt(current.writing_samples, index),
-                  }))
-                }
+                onClick={() => removeItem("writing_samples", index)}
               >
                 Remove writing sample
               </button>
@@ -657,12 +656,7 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
         <button
           className="add-button"
           type="button"
-          onClick={() =>
-            setProfile((current) => ({
-              ...current,
-              writing_samples: [...current.writing_samples, {title: "", content: ""}],
-            }))
-          }
+          onClick={() => appendItem("writing_samples", {title: "", content: ""})}
         >
           Add writing sample
         </button>
@@ -681,7 +675,12 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                 <input
                   required
                   value={story.title}
-                  onChange={(event) => updateStory(index, {...story, title: event.target.value})}
+                  onChange={(event) =>
+                    updateItem("reusable_stories", index, {
+                      ...story,
+                      title: event.target.value,
+                    })
+                  }
                 />
               </label>
               {(["situation", "task", "action", "result"] as const).map((field) => (
@@ -690,19 +689,19 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
                   <textarea
                     rows={3}
                     value={story[field]}
-                    onChange={(event) => updateStory(index, {...story, [field]: event.target.value})}
+                    onChange={(event) =>
+                      updateItem("reusable_stories", index, {
+                        ...story,
+                        [field]: event.target.value,
+                      })
+                    }
                   />
                 </label>
               ))}
               <button
                 className="remove-button"
                 type="button"
-                onClick={() =>
-                  setProfile((current) => ({
-                    ...current,
-                    reusable_stories: removeAt(current.reusable_stories, index),
-                  }))
-                }
+                onClick={() => removeItem("reusable_stories", index)}
               >
                 Remove story
               </button>
@@ -713,13 +712,13 @@ export function ProfileEditor({initialProfile, saving, onSave}: ProfileEditorPro
           className="add-button"
           type="button"
           onClick={() =>
-            setProfile((current) => ({
-              ...current,
-              reusable_stories: [
-                ...current.reusable_stories,
-                {title: "", situation: "", task: "", action: "", result: ""},
-              ],
-            }))
+            appendItem("reusable_stories", {
+              title: "",
+              situation: "",
+              task: "",
+              action: "",
+              result: "",
+            })
           }
         >
           Add story

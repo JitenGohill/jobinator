@@ -62,8 +62,11 @@ class ProfileModule:
 
     @staticmethod
     def _to_saved_profile(row: CanonicalProfileRow) -> SavedProfile:
+        updated_at = row.updated_at
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=timezone.utc)
         return SavedProfile(
             profile=CanonicalProfile.model_validate(row.payload),
             version=row.version,
-            updated_at=row.updated_at,
+            updated_at=updated_at,
         )

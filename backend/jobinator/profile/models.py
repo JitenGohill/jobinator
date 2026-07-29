@@ -1,9 +1,28 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+
+def validate_profile_date(value: str) -> str:
+    if not re.fullmatch(r"(?:\d{4}-(?:0[1-9]|1[0-2])|present)?", value):
+        raise ValueError("Use YYYY-MM, present, or leave the date blank.")
+    return value
+
+
+def validate_profile_url(value: str) -> str:
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("Use a complete http:// or https:// URL.")
+    return value
+
+
+ProfileDate = Annotated[str, AfterValidator(validate_profile_date)]
+ProfileUrl = Annotated[str, AfterValidator(validate_profile_url)]
 
 
 class ProfileModel(BaseModel):
@@ -15,7 +34,7 @@ class Project(ProfileModel):
     summary: str
     highlights: list[str]
     technologies: list[str]
-    link: str | None = None
+    link: ProfileUrl | None = None
 
 
 class Skill(ProfileModel):
@@ -27,22 +46,22 @@ class Education(ProfileModel):
     institution: str = Field(min_length=1)
     credential: str
     field_of_study: str
-    start_date: str
-    end_date: str
+    start_date: ProfileDate
+    end_date: ProfileDate
     highlights: list[str]
 
 
 class WorkExperience(ProfileModel):
     employer: str = Field(min_length=1)
     title: str = Field(min_length=1)
-    start_date: str
-    end_date: str
+    start_date: ProfileDate
+    end_date: ProfileDate
     highlights: list[str]
 
 
 class ProfileLink(ProfileModel):
     label: str = Field(min_length=1)
-    url: str = Field(min_length=1)
+    url: ProfileUrl
 
 
 class WritingSample(ProfileModel):
