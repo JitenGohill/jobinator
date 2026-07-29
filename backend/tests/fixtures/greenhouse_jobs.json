@@ -1,0 +1,17 @@
+{
+  "jobs": [
+    {
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/12345",
+      "content": "<p>Build dependable tools for our operations team.</p><h3>What we're looking for</h3><ul><li>Experience with Python</li><li>Clear written communication</li></ul>",
+      "id": 12345,
+      "location": {
+        "name": "New York, NY"
+      },
+      "title": "Junior Software Engineer",
+      "updated_at": "2026-07-28T16:30:00-04:00"
+    }
+  ],
+  "meta": {
+    "total": 1
+  }
+}

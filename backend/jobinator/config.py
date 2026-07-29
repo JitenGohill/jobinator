@@ -11,3 +11,5 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/jobinator.db"
     openai_api_key: SecretStr | None = None
+    greenhouse_board_token: str | None = None
+    greenhouse_company: str | None = None

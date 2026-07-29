@@ -23,6 +23,23 @@ class CanonicalProfileRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class JobSnapshotRow(Base):
+    __tablename__ = "job_snapshot"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_url: Mapped[str] = mapped_column(nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    company: Mapped[str] = mapped_column(nullable=False)
+    title: Mapped[str] = mapped_column(nullable=False)
+    location: Mapped[str] = mapped_column(nullable=False)
+    description_text: Mapped[str] = mapped_column(nullable=False)
+    detected_requirements: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    source_platform: Mapped[str] = mapped_column(nullable=False)
+    ats_posting_id: Mapped[str | None] = mapped_column(nullable=True)
+    canonical_url: Mapped[str] = mapped_column(nullable=False)
+    raw_posting: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
 def create_database_engine(database_url: str) -> Engine:
     parsed_url = make_url(database_url)
     database_path = parsed_url.database

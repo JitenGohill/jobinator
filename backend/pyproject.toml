@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
   "anyio>=4.4,<4.9",
   "fastapi>=0.115,<0.116",
+  "httpx>=0.28,<1",
   "pydantic-settings>=2.7,<3",
   "sqlalchemy>=2.0,<3",
   "uvicorn[standard]>=0.34,<1",
@@ -17,11 +18,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.28,<1",
   "mypy>=1.14,<2",
   "pytest>=8.3,<9",
   "ruff>=0.9,<1",
 ]
+
+[project.scripts]
+jobinator-ingest = "jobinator.ingest:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["jobinator"]

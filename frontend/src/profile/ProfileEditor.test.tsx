@@ -14,6 +14,12 @@ test("user can create a structured canonical profile", async () => {
     .spyOn(globalThis, "fetch")
     .mockResolvedValueOnce(new Response(JSON.stringify({detail: "not found"}), {status: 404}))
     .mockResolvedValueOnce(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: {"Content-Type": "application/json"},
+      }),
+    )
+    .mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           profile: {
@@ -62,8 +68,8 @@ test("user can create a structured canonical profile", async () => {
   await user.selectOptions(within(skillsSection).getByLabelText("Proficiency"), "advanced");
   await user.click(screen.getByRole("button", {name: "Save profile"}));
 
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-  const saveRequest = fetchMock.mock.calls[1];
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  const saveRequest = fetchMock.mock.calls[2];
   expect(saveRequest[0]).toBe("/api/profile");
   expect(JSON.parse(String(saveRequest[1]?.body))).toEqual({
     expected_version: null,
@@ -109,6 +115,12 @@ test("user can view and update a saved profile", async () => {
       ),
     )
     .mockResolvedValueOnce(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: {"Content-Type": "application/json"},
+      }),
+    )
+    .mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           profile: {...existingProfile, base_cv: "Updated CV"},
@@ -128,8 +140,8 @@ test("user can view and update a saved profile", async () => {
   await user.type(cv, "Updated CV");
   await user.click(screen.getByRole("button", {name: "Save profile"}));
 
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-  expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toMatchObject({
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toMatchObject({
     expected_version: 4,
     profile: {base_cv: "Updated CV"},
   });

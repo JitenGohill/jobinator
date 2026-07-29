@@ -1,8 +1,8 @@
 # Jobinator
 
-Jobinator is a local-first job application assistant. The first usable slice is a
-canonical-profile dashboard: it keeps the facts and preferences that later job
-screening and application packets will treat as their source of truth.
+Jobinator is a local-first job application assistant. Its dashboard keeps the
+canonical profile that later screening and application packets use as their source
+of truth, and captures immutable job snapshots from configured discovery sources.
 
 Profile data is stored in a local SQLite database. Nothing in this version requires
 an API key or network access after dependencies are installed.
@@ -59,6 +59,27 @@ The profile editor supports:
 - Supporting links and search constraints
 - Writing samples and reusable STAR stories
 
+## Discover Greenhouse roles
+
+Configure a public Greenhouse board in `.env`:
+
+```dotenv
+JOBINATOR_GREENHOUSE_BOARD_TOKEN=acme
+JOBINATOR_GREENHOUSE_COMPANY=Acme Corp
+```
+
+The board token is the segment used by `https://boards.greenhouse.io/<token>`.
+Use **Ingest configured sources** in the dashboard, or run the same source-adapter
+entry point independently:
+
+```bash
+backend/.venv/bin/jobinator-ingest
+```
+
+Each discovery creates a new immutable local snapshot containing the original
+Greenhouse posting and normalized role details. A failed fetch or invalid response
+does not replace earlier snapshots.
+
 Saved updates use profile versions so an older browser tab cannot silently overwrite
 newer profile data.
 
@@ -81,5 +102,5 @@ npm run typecheck
 npm run build
 ```
 
-Tests use a deterministic profile fixture, a temporary SQLite database, and no
-secrets or live network calls.
+Tests use deterministic profile and Greenhouse fixtures, temporary SQLite databases,
+and no secrets or live network calls.
