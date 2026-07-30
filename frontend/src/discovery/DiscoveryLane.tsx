@@ -101,6 +101,36 @@ export function DiscoveryLane({jobs, ingesting, onIngest}: DiscoveryLaneProps) {
                           latest snapshot{" "}
                           {new Date(job.fetched_at).toLocaleString()}
                         </p>
+                        <details className="snapshot-history">
+                          <summary>Snapshot history ({job.snapshots.length})</summary>
+                          <div className="snapshot-list">
+                            {job.snapshots.map((snapshot) => (
+                              <article className="snapshot-card" key={snapshot.id}>
+                                <div className="snapshot-heading">
+                                  <a
+                                    href={snapshot.canonical_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    {snapshot.source_platform} snapshot
+                                  </a>
+                                  <time dateTime={snapshot.fetched_at}>
+                                    {new Date(snapshot.fetched_at).toLocaleString()}
+                                  </time>
+                                </div>
+                                <p>
+                                  {snapshot.company} · {snapshot.location}
+                                </p>
+                                <p className="snapshot-title">{snapshot.title}</p>
+                                <p>{snapshot.description_text}</p>
+                                <details>
+                                  <summary>Raw posting</summary>
+                                  <pre>{JSON.stringify(snapshot.raw_posting, null, 2)}</pre>
+                                </details>
+                              </article>
+                            ))}
+                          </div>
+                        </details>
                       </article>
                     ))}
                   </div>

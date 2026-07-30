@@ -132,7 +132,7 @@ def _apply_route_rank(snapshot: JobSnapshot) -> tuple[_ApplyRouteAuthority, bool
         authority = _ApplyRouteAuthority.REPOST
     else:
         authority = _ApplyRouteAuthority.UNKNOWN
-    return authority, not bool(parts.query), -(snapshot.id or 0)
+    return authority, not bool(parts.query), snapshot.id or 0
 
 
 def _canonical_url(value: str) -> str:

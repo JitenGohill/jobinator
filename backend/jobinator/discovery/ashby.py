@@ -77,7 +77,7 @@ class AshbyAdapter:
         return JobSnapshot(
             source_url=canonical_url,
             fetched_at=fetched_at,
-            company=source.company,
+            company=source.require_company(),
             title=job.title,
             location=job.location,
             description_text="\n".join(description_lines),

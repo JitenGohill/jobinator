@@ -61,7 +61,7 @@ The profile editor supports:
 
 ## Discover ATS roles
 
-Configure one or more public Greenhouse, Lever, or Ashby sources in `.env`:
+Configure one or more public ATS sources or directly reachable posting URLs in `.env`:
 
 ```dotenv
 JOBINATOR_GREENHOUSE_BOARD_TOKEN=acme
@@ -72,11 +72,19 @@ JOBINATOR_LEVER_COMPANY=Acme Corp
 
 JOBINATOR_ASHBY_BOARD=acme
 JOBINATOR_ASHBY_COMPANY=Acme Corp
+
+JOBINATOR_CAREER_PAGE_URLS=["https://careers.acme.example/jobs/software-engineer"]
+JOBINATOR_WORKDAY_POSTING_URLS=["https://acme.wd5.myworkdayjobs.com/en-US/Acme_Careers/job/Chicago-IL/Software-Engineer_JR-123"]
 ```
 
 The source identifier is the final segment in the source's hosted jobs URL:
 `boards.greenhouse.io/<token>`, `jobs.lever.co/<site>`, or
 `jobs.ashbyhq.com/<board>`.
+
+Direct company career pages are supported when the fetched HTML contains a
+schema.org `JobPosting` JSON-LD record. Direct Workday `/job/` URLs use Workday's
+public JSON endpoint. Blocked, missing, or unrecognized pages produce source
+diagnostics; Jobinator does not attempt browser automation.
 Use **Ingest configured sources** in the dashboard, or run the same source-adapter
 entry point independently:
 

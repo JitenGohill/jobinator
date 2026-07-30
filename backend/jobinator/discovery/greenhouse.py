@@ -83,7 +83,7 @@ class GreenhouseAdapter:
         return JobSnapshot(
             source_url=job.absolute_url,
             fetched_at=fetched_at,
-            company=source.company,
+            company=source.require_company(),
             title=job.title,
             location=job.location.name,
             description_text="\n".join(description_lines),

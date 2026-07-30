@@ -27,7 +27,15 @@ test("user can inspect screened roles by lane with understandable reasons", asyn
         id: 1,
         source_url: "https://boards.greenhouse.io/acme/jobs/12345",
         fetched_at: "2026-07-29T12:00:00Z",
+        company: "Acme Corp",
+        title: "Junior Software Engineer",
+        location: "New York, NY",
+        description_text: "Build dependable tools for our operations team.",
+        detected_requirements: ["Experience with Python", "Clear written communication"],
         source_platform: "greenhouse",
+        ats_posting_id: "12345",
+        canonical_url: "https://boards.greenhouse.io/acme/jobs/12345",
+        raw_posting: {id: 12345},
       },
     ],
     screening: {
@@ -77,8 +85,10 @@ test("user can inspect screened roles by lane with understandable reasons", asyn
   expect(screen.getByRole("heading", {name: "Stretch"})).toBeInTheDocument();
   expect(screen.getByRole("heading", {name: "Maybe"})).toBeInTheDocument();
   expect(screen.getByRole("heading", {name: "Rejected"})).toBeInTheDocument();
-  expect(screen.getByRole("heading", {name: "Junior Software Engineer"})).toBeInTheDocument();
-  expect(screen.getAllByText("Acme Corp · New York, NY")).toHaveLength(4);
+  expect(
+    screen.getByRole("heading", {name: "Junior Software Engineer", level: 4}),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText("Acme Corp · New York, NY")).toHaveLength(8);
   expect(screen.getAllByText("Experience with Python")).toHaveLength(4);
   expect(screen.getAllByText("Clear written communication")).toHaveLength(4);
   expect(screen.getByText("Junior-friendly role: junior.")).toBeInTheDocument();
@@ -111,6 +121,7 @@ test("merged opportunity shows contributing sources and the preferred apply link
     source_platform: "greenhouse",
     ats_posting_id: "12345",
     canonical_url: "https://boards.greenhouse.io/acme/jobs/12345",
+    raw_posting: {id: 12345},
   };
   const linkedinSnapshot = {
     ...greenhouseSnapshot,
@@ -140,11 +151,22 @@ test("merged opportunity shows contributing sources and the preferred apply link
   );
 
   expect(
-    screen.getByRole("heading", {name: "Junior Software Engineer"}),
+    screen.getByRole("heading", {name: "Junior Software Engineer", level: 4}),
   ).toBeInTheDocument();
   expect(screen.getByText("Sources: greenhouse, linkedin")).toBeInTheDocument();
+  expect(screen.getByText("Snapshot history (2)")).toBeInTheDocument();
   expect(screen.getByRole("link", {name: "Apply via preferred source"})).toHaveAttribute(
     "href",
     "https://boards.greenhouse.io/acme/jobs/12345",
   );
+  expect(screen.getByRole("link", {name: "greenhouse snapshot"})).toHaveAttribute(
+    "href",
+    "https://boards.greenhouse.io/acme/jobs/12345",
+  );
+  expect(screen.getByRole("link", {name: "linkedin snapshot"})).toHaveAttribute(
+    "href",
+    "https://www.linkedin.com/jobs/view/9876",
+  );
+  expect(screen.getAllByText("Build dependable tools.")).toHaveLength(3);
+  expect(screen.getAllByText("Raw posting")).toHaveLength(2);
 });

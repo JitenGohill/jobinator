@@ -16,7 +16,12 @@ class DiscoveryModel(BaseModel):
 class SourceConfiguration(DiscoveryModel):
     platform: SourcePlatform
     identifier: str = Field(min_length=1)
-    company: str = Field(min_length=1)
+    company: str | None = Field(default=None, min_length=1)
+
+    def require_company(self) -> str:
+        if self.company is None:
+            raise ValueError("Source company is not configured.")
+        return self.company
 
 
 class JobSnapshot(DiscoveryModel):

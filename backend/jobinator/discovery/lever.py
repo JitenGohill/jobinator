@@ -87,7 +87,7 @@ class LeverAdapter:
         return JobSnapshot(
             source_url=canonical_url,
             fetched_at=fetched_at,
-            company=source.company,
+            company=source.require_company(),
             title=posting.text,
             location=posting.categories.location,
             description_text="\n".join(line for line in description_lines if line),

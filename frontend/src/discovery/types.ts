@@ -22,7 +22,15 @@ export interface ContributingSnapshot {
   id: number;
   source_url: string;
   fetched_at: string;
+  company: string;
+  title: string;
+  location: string;
+  description_text: string;
+  detected_requirements: string[];
   source_platform: string;
+  ats_posting_id: string | null;
+  canonical_url: string;
+  raw_posting: Record<string, unknown>;
 }
 
 export type ScreeningLane = "eligible" | "stretch" | "maybe" | "rejected";

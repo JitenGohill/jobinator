@@ -1,4 +1,4 @@
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,3 +17,5 @@ class Settings(BaseSettings):
     lever_company: str | None = None
     ashby_board: str | None = None
     ashby_company: str | None = None
+    career_page_urls: list[str] = Field(default_factory=list)
+    workday_posting_urls: list[str] = Field(default_factory=list)

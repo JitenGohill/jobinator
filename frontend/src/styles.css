@@ -272,6 +272,58 @@ main {
   text-transform: capitalize;
 }
 
+.snapshot-history {
+  margin-top: 16px;
+  color: #334155;
+}
+
+.snapshot-history > summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.snapshot-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.snapshot-card {
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.snapshot-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.78rem;
+}
+
+.snapshot-card p {
+  margin: 8px 0 0;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.snapshot-title {
+  color: #172554;
+  font-weight: 750;
+}
+
+.snapshot-card pre {
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 7px;
+  background: #e2e8f0;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+}
+
 .page-heading {
   max-width: 720px;
   margin-bottom: 40px;
