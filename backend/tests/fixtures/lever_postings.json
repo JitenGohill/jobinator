@@ -21,7 +21,14 @@
   ],
   "malformed_response": [
     {
-      "id": "missing-required-fields"
+      "id": "",
+      "text": "Junior Software Engineer",
+      "categories": {
+        "location": "New York, NY"
+      },
+      "descriptionPlain": "Build dependable tools.",
+      "lists": [],
+      "hostedUrl": "not-a-url"
     }
   ]
 }

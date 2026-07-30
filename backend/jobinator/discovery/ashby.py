@@ -5,7 +5,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, HttpUrl, ValidationError
 
 from jobinator.discovery.errors import SourceFetchError, SourceNormalizationError
 from jobinator.discovery.models import JobSnapshot, SourceConfiguration
@@ -18,7 +18,7 @@ class _AshbyJob(BaseModel):
     title: str
     location: str
     descriptionHtml: str
-    jobUrl: str
+    jobUrl: HttpUrl
 
 
 class _AshbyResponse(BaseModel):
@@ -70,11 +70,12 @@ class AshbyAdapter:
         fetched_at: datetime,
     ) -> JobSnapshot:
         description_lines, requirements = parse_posting_html(job.descriptionHtml)
-        posting_id = urlsplit(job.jobUrl).path.rstrip("/").rsplit("/", maxsplit=1)[-1]
+        canonical_url = str(job.jobUrl)
+        posting_id = urlsplit(canonical_url).path.rstrip("/").rsplit("/", maxsplit=1)[-1]
         if not posting_id:
             raise SourceNormalizationError("Ashby returned an invalid posting.")
         return JobSnapshot(
-            source_url=job.jobUrl,
+            source_url=canonical_url,
             fetched_at=fetched_at,
             company=source.company,
             title=job.title,
@@ -83,6 +84,6 @@ class AshbyAdapter:
             detected_requirements=requirements,
             source_platform="ashby",
             ats_posting_id=posting_id,
-            canonical_url=job.jobUrl,
+            canonical_url=canonical_url,
             raw_posting=raw_posting,
         )

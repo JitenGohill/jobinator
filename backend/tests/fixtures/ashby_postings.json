@@ -14,7 +14,10 @@
   "malformed_response": {
     "jobs": [
       {
-        "publishedAt": "2026-07-20T10:00:00Z"
+        "title": "Junior Software Engineer",
+        "location": "New York, NY",
+        "descriptionHtml": "<p>Build dependable tools.</p>",
+        "jobUrl": "not-a-url"
       }
     ]
   }

@@ -5,7 +5,7 @@ from html import escape
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, ValidationError
 
 from jobinator.discovery.errors import SourceFetchError, SourceNormalizationError
 from jobinator.discovery.models import JobSnapshot, SourceConfiguration
@@ -28,12 +28,12 @@ class _LeverList(BaseModel):
 class _LeverPosting(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    id: str
+    id: str = Field(min_length=1)
     text: str
     categories: _LeverCategories
     descriptionPlain: str
     lists: list[_LeverList]
-    hostedUrl: str
+    hostedUrl: HttpUrl
 
 
 class LeverAdapter:
@@ -83,8 +83,9 @@ class LeverAdapter:
         )
         list_lines, requirements = parse_posting_html(list_html)
         description_lines = [posting.descriptionPlain.strip(), *list_lines]
+        canonical_url = str(posting.hostedUrl)
         return JobSnapshot(
-            source_url=posting.hostedUrl,
+            source_url=canonical_url,
             fetched_at=fetched_at,
             company=source.company,
             title=posting.text,
@@ -93,6 +94,6 @@ class LeverAdapter:
             detected_requirements=requirements,
             source_platform="lever",
             ats_posting_id=posting.id,
-            canonical_url=posting.hostedUrl,
+            canonical_url=canonical_url,
             raw_posting=raw_posting,
         )
