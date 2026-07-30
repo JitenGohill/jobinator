@@ -21,6 +21,15 @@ test("user can inspect screened roles by lane with understandable reasons", asyn
     source_platform: "greenhouse" as const,
     ats_posting_id: "12345",
     canonical_url: "https://boards.greenhouse.io/acme/jobs/12345",
+    preferred_apply_url: "https://boards.greenhouse.io/acme/jobs/12345",
+    snapshots: [
+      {
+        id: 1,
+        source_url: "https://boards.greenhouse.io/acme/jobs/12345",
+        fetched_at: "2026-07-29T12:00:00Z",
+        source_platform: "greenhouse",
+      },
+    ],
     screening: {
       lane: "eligible" as const,
       reasons: ["Target location: New York.", "Junior-friendly role: junior."],
@@ -78,11 +87,64 @@ test("user can inspect screened roles by lane with understandable reasons", asyn
     screen.getByText("Staffing-agency listing retained for manual review."),
   ).toBeInTheDocument();
   expect(screen.getByText("Excluded seniority: senior role.")).toBeInTheDocument();
-  expect(screen.getAllByRole("link", {name: "View source"})[0]).toHaveAttribute(
+  expect(
+    screen.getAllByRole("link", {name: "Apply via preferred source"})[0],
+  ).toHaveAttribute(
     "href",
     "https://boards.greenhouse.io/acme/jobs/12345",
   );
 
   await user.click(screen.getByRole("button", {name: "Ingest configured sources"}));
   expect(ingest).toHaveBeenCalledOnce();
+});
+
+test("merged opportunity shows contributing sources and the preferred apply link", () => {
+  const greenhouseSnapshot = {
+    id: 1,
+    source_url: "https://boards.greenhouse.io/acme/jobs/12345",
+    fetched_at: "2026-07-29T12:00:00Z",
+    company: "Acme Corp",
+    title: "Junior Software Engineer",
+    location: "New York, NY",
+    description_text: "Build dependable tools.",
+    detected_requirements: ["Experience with Python"],
+    source_platform: "greenhouse",
+    ats_posting_id: "12345",
+    canonical_url: "https://boards.greenhouse.io/acme/jobs/12345",
+  };
+  const linkedinSnapshot = {
+    ...greenhouseSnapshot,
+    id: 2,
+    source_url: "https://www.linkedin.com/jobs/view/9876",
+    source_platform: "linkedin",
+    ats_posting_id: "9876",
+    canonical_url: "https://www.linkedin.com/jobs/view/9876",
+  };
+
+  render(
+    <DiscoveryLane
+      jobs={[
+        {
+          ...greenhouseSnapshot,
+          preferred_apply_url: "https://boards.greenhouse.io/acme/jobs/12345",
+          snapshots: [greenhouseSnapshot, linkedinSnapshot],
+          screening: {
+            lane: "eligible",
+            reasons: ["Target location: New York."],
+          },
+        },
+      ]}
+      ingesting={false}
+      onIngest={vi.fn().mockResolvedValue(undefined)}
+    />,
+  );
+
+  expect(
+    screen.getByRole("heading", {name: "Junior Software Engineer"}),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Sources: greenhouse, linkedin")).toBeInTheDocument();
+  expect(screen.getByRole("link", {name: "Apply via preferred source"})).toHaveAttribute(
+    "href",
+    "https://boards.greenhouse.io/acme/jobs/12345",
+  );
 });

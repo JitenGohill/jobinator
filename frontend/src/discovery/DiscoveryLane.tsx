@@ -61,8 +61,12 @@ export function DiscoveryLane({jobs, ingesting, onIngest}: DiscoveryLaneProps) {
                             </p>
                             <h4>{job.title}</h4>
                           </div>
-                          <a href={job.canonical_url} target="_blank" rel="noreferrer">
-                            View source
+                          <a
+                            href={job.preferred_apply_url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Apply via preferred source
                           </a>
                         </div>
                         <div className="screening-reasons">
@@ -85,9 +89,17 @@ export function DiscoveryLane({jobs, ingesting, onIngest}: DiscoveryLaneProps) {
                           </div>
                         )}
                         <p className="job-meta">
-                          {job.source_platform} · fetched{" "}
+                          <span>
+                            Sources:{" "}
+                            {[
+                              ...new Set(
+                                job.snapshots.map((snapshot) => snapshot.source_platform),
+                              ),
+                            ].join(", ")}
+                          </span>
+                          {" · "}
+                          latest snapshot{" "}
                           {new Date(job.fetched_at).toLocaleString()}
-                          {job.ats_posting_id ? ` · ATS ID ${job.ats_posting_id}` : ""}
                         </p>
                       </article>
                     ))}

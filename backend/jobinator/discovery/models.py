@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 ScreeningLane = Literal["eligible", "stretch", "maybe", "rejected"]
+SourcePlatform = Annotated[str, Field(min_length=1)]
 
 
 class DiscoveryModel(BaseModel):
@@ -13,7 +14,7 @@ class DiscoveryModel(BaseModel):
 
 
 class SourceConfiguration(DiscoveryModel):
-    platform: Literal["greenhouse"]
+    platform: SourcePlatform
     identifier: str = Field(min_length=1)
     company: str = Field(min_length=1)
 
@@ -27,7 +28,7 @@ class JobSnapshot(DiscoveryModel):
     location: str
     description_text: str
     detected_requirements: list[str]
-    source_platform: Literal["greenhouse"]
+    source_platform: SourcePlatform
     ats_posting_id: str | None
     canonical_url: str
     raw_posting: dict[str, Any]
@@ -39,6 +40,15 @@ class ScreeningResult(DiscoveryModel):
 
 
 class ScreenedJob(JobSnapshot):
+    screening: ScreeningResult
+
+
+class Opportunity(JobSnapshot):
+    preferred_apply_url: str
+    snapshots: list[JobSnapshot] = Field(min_length=1)
+
+
+class ScreenedOpportunity(Opportunity):
     screening: ScreeningResult
 
 

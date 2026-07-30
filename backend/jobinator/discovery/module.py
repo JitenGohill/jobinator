@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from typing import Literal, Protocol, cast
+from typing import Protocol
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -12,9 +12,10 @@ from jobinator.database import CanonicalProfileRow, JobSnapshotRow
 from jobinator.discovery.models import (
     IngestionResult,
     JobSnapshot,
-    ScreenedJob,
+    ScreenedOpportunity,
     SourceConfiguration,
 )
+from jobinator.discovery.opportunities import build_opportunities
 from jobinator.discovery.screening import ScreeningPolicy
 from jobinator.profile.models import CanonicalProfile
 
@@ -87,7 +88,7 @@ class DiscoveryModule:
                 )
         return IngestionResult(discovered=len(snapshots))
 
-    def list_discovered(self) -> list[ScreenedJob]:
+    def list_discovered(self) -> list[ScreenedOpportunity]:
         with self._sessions() as session:
             rows = session.scalars(
                 select(JobSnapshotRow).order_by(
@@ -102,13 +103,13 @@ class DiscoveryModule:
                 else None
             )
             policy = ScreeningPolicy(profile)
-            snapshots = [self._to_snapshot(row) for row in rows]
+            opportunities = build_opportunities([self._to_snapshot(row) for row in rows])
             return [
-                ScreenedJob(
-                    **snapshot.model_dump(),
-                    screening=policy.screen(snapshot),
+                ScreenedOpportunity(
+                    **opportunity.model_dump(),
+                    screening=policy.screen(opportunity),
                 )
-                for snapshot in snapshots
+                for opportunity in opportunities
             ]
 
     @staticmethod
@@ -125,7 +126,7 @@ class DiscoveryModule:
             location=row.location,
             description_text=row.description_text,
             detected_requirements=row.detected_requirements,
-            source_platform=cast(Literal["greenhouse"], row.source_platform),
+            source_platform=row.source_platform,
             ats_posting_id=row.ats_posting_id,
             canonical_url=row.canonical_url,
             raw_posting=row.raw_posting,

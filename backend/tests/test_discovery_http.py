@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.orm import Session, sessionmaker
 
 from jobinator.config import Settings
+from jobinator.database import create_session_factory
+from jobinator.discovery.models import JobSnapshot, SourceConfiguration
+from jobinator.discovery.module import DiscoveryModule
 from jobinator.main import create_app
 
 
@@ -22,6 +28,73 @@ def load_greenhouse_fixture() -> dict[str, Any]:
 def load_screening_fixture() -> dict[str, Any]:
     fixture_path = Path(__file__).parent / "fixtures" / "screening_jobs.json"
     return json.loads(fixture_path.read_text())
+
+
+def load_opportunity_fixture() -> dict[str, list[dict[str, Any]]]:
+    fixture_path = Path(__file__).parent / "fixtures" / "opportunity_duplicates.json"
+    return json.loads(fixture_path.read_text())
+
+
+class FixtureAdapter:
+    def __init__(self, platform: str, postings: list[dict[str, Any]]) -> None:
+        self.platform = platform
+        self._postings = postings
+
+    async def discover(
+        self,
+        source: SourceConfiguration,
+        fetched_at: datetime,
+    ) -> list[JobSnapshot]:
+        return [
+            JobSnapshot.model_validate(
+                {
+                    **posting,
+                    "fetched_at": fetched_at,
+                    "raw_posting": posting,
+                }
+            )
+            for posting in self._postings
+            if posting["source_platform"] == source.platform
+        ]
+
+
+def configure_fixture_discovery(
+    app: FastAPI,
+    postings: list[dict[str, Any]],
+    clock: Callable[[], datetime],
+) -> None:
+    sessions: sessionmaker[Session] = create_session_factory(app.state.database_engine)
+    platforms = list(dict.fromkeys(posting["source_platform"] for posting in postings))
+    app.state.discovery_module = DiscoveryModule(
+        sessions=sessions,
+        sources=[
+            SourceConfiguration(platform=platform, identifier=platform, company="Fixture")
+            for platform in platforms
+        ],
+        adapters={
+            platform: FixtureAdapter(platform, postings)
+            for platform in platforms
+        },
+        clock=clock,
+    )
+
+
+async def ingest_fixture_postings(
+    tmp_path: Path,
+    postings: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    app = create_app(database_url=f"sqlite:///{tmp_path / 'jobinator.db'}")
+    configure_fixture_discovery(
+        app,
+        postings,
+        lambda: datetime(2026, 7, 29, 12, 0, tzinfo=timezone.utc),
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        ingestion_response = await client.post("/api/discovery/ingest")
+        response = await client.get("/api/discovery/jobs")
+    assert ingestion_response.status_code == 200
+    assert response.status_code == 200
+    return response.json()
 
 
 async def screen_fixture_jobs(
@@ -93,30 +166,35 @@ async def test_configured_greenhouse_board_is_ingested_as_a_discovered_snapshot(
     assert ingestion_response.status_code == 200
     assert ingestion_response.json() == {"discovered": 1}
     assert discovered_response.status_code == 200
+    expected_snapshot = {
+        "id": 1,
+        "source_url": "https://boards.greenhouse.io/acme/jobs/12345",
+        "fetched_at": "2026-07-29T12:00:00Z",
+        "company": "Acme Corp",
+        "title": "Junior Software Engineer",
+        "location": "New York, NY",
+        "description_text": (
+            "Build dependable tools for our operations team.\n"
+            "What we're looking for\n"
+            "Experience with Python\n"
+            "Clear written communication\n"
+            "Benefits\n"
+            "Health insurance"
+        ),
+        "detected_requirements": [
+            "Experience with Python",
+            "Clear written communication",
+        ],
+        "source_platform": "greenhouse",
+        "ats_posting_id": "12345",
+        "canonical_url": "https://boards.greenhouse.io/acme/jobs/12345",
+        "raw_posting": fixture["jobs"][0],
+    }
     assert discovered_response.json() == [
         {
-            "id": 1,
-            "source_url": "https://boards.greenhouse.io/acme/jobs/12345",
-            "fetched_at": "2026-07-29T12:00:00Z",
-            "company": "Acme Corp",
-            "title": "Junior Software Engineer",
-            "location": "New York, NY",
-            "description_text": (
-                "Build dependable tools for our operations team.\n"
-                "What we're looking for\n"
-                "Experience with Python\n"
-                "Clear written communication\n"
-                "Benefits\n"
-                "Health insurance"
-            ),
-            "detected_requirements": [
-                "Experience with Python",
-                "Clear written communication",
-            ],
-            "source_platform": "greenhouse",
-            "ats_posting_id": "12345",
-            "canonical_url": "https://boards.greenhouse.io/acme/jobs/12345",
-            "raw_posting": fixture["jobs"][0],
+            **expected_snapshot,
+            "preferred_apply_url": "https://boards.greenhouse.io/acme/jobs/12345",
+            "snapshots": [expected_snapshot],
             "screening": {
                 "lane": "eligible",
                 "reasons": [
@@ -126,6 +204,88 @@ async def test_configured_greenhouse_board_is_ingested_as_a_discovered_snapshot(
                 ],
             },
         }
+    ]
+
+
+@pytest.mark.anyio
+async def test_definite_duplicate_discoveries_are_one_opportunity_with_both_snapshots(
+    tmp_path: Path,
+) -> None:
+    postings = load_opportunity_fixture()["definite_duplicates"]
+    opportunities = await ingest_fixture_postings(tmp_path, postings)
+    assert len(opportunities) == 1
+    assert opportunities[0]["preferred_apply_url"] == (
+        "https://boards.greenhouse.io/acme/jobs/12345"
+    )
+    assert [
+        snapshot["raw_posting"] for snapshot in opportunities[0]["snapshots"]
+    ] == postings
+
+
+@pytest.mark.anyio
+async def test_similar_but_distinct_roles_remain_separate_opportunities(
+    tmp_path: Path,
+) -> None:
+    postings = load_opportunity_fixture()["similar_distinct"]
+    opportunities = await ingest_fixture_postings(tmp_path, postings)
+    assert {opportunity["title"] for opportunity in opportunities} == {
+        "Software Engineer I",
+        "Software Engineer II",
+    }
+
+
+@pytest.mark.anyio
+async def test_cross_source_duplicates_prefer_the_ats_apply_route(
+    tmp_path: Path,
+) -> None:
+    postings = load_opportunity_fixture()["cross_source_duplicates"]
+    opportunities = await ingest_fixture_postings(tmp_path, postings)
+    assert len(opportunities) == 1
+    assert opportunities[0]["preferred_apply_url"] == (
+        "https://boards.greenhouse.io/acme/jobs/2468"
+    )
+    assert {snapshot["source_platform"] for snapshot in opportunities[0]["snapshots"]} == {
+        "greenhouse",
+        "job_board",
+    }
+
+
+@pytest.mark.anyio
+async def test_a_discovery_that_bridges_duplicate_groups_coalesces_them(
+    tmp_path: Path,
+) -> None:
+    postings = load_opportunity_fixture()["bridging_duplicate"]
+    opportunities = await ingest_fixture_postings(tmp_path, postings)
+    assert len(opportunities) == 1
+    assert len(opportunities[0]["snapshots"]) == 3
+
+
+@pytest.mark.anyio
+async def test_repeated_ingestion_keeps_each_snapshot_under_one_opportunity(
+    tmp_path: Path,
+) -> None:
+    postings = load_opportunity_fixture()["repeated_snapshot"]
+    app = create_app(database_url=f"sqlite:///{tmp_path / 'jobinator.db'}")
+    fetched_times = iter(
+        [
+            datetime(2026, 7, 29, 12, 0, tzinfo=timezone.utc),
+            datetime(2026, 7, 30, 12, 0, tzinfo=timezone.utc),
+        ]
+    )
+    configure_fixture_discovery(app, postings, lambda: next(fetched_times))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        first_ingestion = await client.post("/api/discovery/ingest")
+        second_ingestion = await client.post("/api/discovery/ingest")
+        response = await client.get("/api/discovery/jobs")
+
+    assert first_ingestion.json() == {"discovered": 1}
+    assert second_ingestion.json() == {"discovered": 1}
+    opportunities = response.json()
+    assert len(opportunities) == 1
+    assert [snapshot["fetched_at"] for snapshot in opportunities[0]["snapshots"]] == [
+        "2026-07-29T12:00:00Z",
+        "2026-07-30T12:00:00Z",
     ]
 
 

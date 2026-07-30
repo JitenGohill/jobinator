@@ -77,8 +77,9 @@ backend/.venv/bin/jobinator-ingest
 ```
 
 Each discovery creates a new immutable local snapshot containing the original
-Greenhouse posting and normalized role details. A failed fetch or invalid response
-does not replace earlier snapshots.
+Greenhouse posting and normalized role details. Equivalent snapshots are presented
+as one opportunity with their contributing sources and the preferred official or ATS
+apply route. Repeated ingestion and failed fetches never replace earlier snapshots.
 
 Saved updates use profile versions so an older browser tab cannot silently overwrite
 newer profile data.

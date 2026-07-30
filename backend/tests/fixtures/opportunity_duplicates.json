@@ -1,0 +1,122 @@
+{
+  "definite_duplicates": [
+    {
+      "source_url": "https://boards.greenhouse.io/acme/jobs/12345",
+      "company": "Acme Corp",
+      "title": "Junior Software Engineer",
+      "location": "New York, NY",
+      "description_text": "Build dependable tools.",
+      "detected_requirements": ["Experience with Python"],
+      "source_platform": "greenhouse",
+      "ats_posting_id": "12345",
+      "canonical_url": "https://boards.greenhouse.io/acme/jobs/12345"
+    },
+    {
+      "source_url": "https://boards.greenhouse.io/acme/jobs/12345?gh_src=job-board",
+      "company": "Acme Corporation",
+      "title": "Junior Software Eng.",
+      "location": "New York, NY",
+      "description_text": "Build dependable tools.",
+      "detected_requirements": ["Experience with Python"],
+      "source_platform": "greenhouse",
+      "ats_posting_id": "12345",
+      "canonical_url": "https://boards.greenhouse.io/acme/jobs/12345?gh_src=job-board"
+    }
+  ],
+  "similar_distinct": [
+    {
+      "source_url": "https://careers.acme.com/jobs/software-engineer-i",
+      "company": "Acme Corporation",
+      "title": "Software Engineer I",
+      "location": "New York, NY",
+      "description_text": "Build backend services.",
+      "detected_requirements": ["Experience with Python"],
+      "source_platform": "company",
+      "ats_posting_id": "engineer-1",
+      "canonical_url": "https://careers.acme.com/jobs/software-engineer-i"
+    },
+    {
+      "source_url": "https://careers.acme.com/jobs/software-engineer-ii",
+      "company": "Acme Corp",
+      "title": "Software Engineer II",
+      "location": "New York, NY",
+      "description_text": "Build backend services.",
+      "detected_requirements": ["Experience with Python"],
+      "source_platform": "company",
+      "ats_posting_id": "engineer-2",
+      "canonical_url": "https://careers.acme.com/jobs/software-engineer-ii"
+    }
+  ],
+  "cross_source_duplicates": [
+    {
+      "source_url": "https://builtinnyc.com/job/backend-engineer/9876",
+      "company": "Acme Corporation",
+      "title": "Sr Backend Eng.",
+      "location": "New York, NY",
+      "description_text": "Build backend services.",
+      "detected_requirements": ["Experience with Python"],
+      "source_platform": "job_board",
+      "ats_posting_id": "9876",
+      "canonical_url": "https://builtinnyc.com/job/backend-engineer/9876"
+    },
+    {
+      "source_url": "https://boards.greenhouse.io/acme/jobs/2468",
+      "company": "Acme",
+      "title": "Senior Backend Engineer",
+      "location": "New York, NY",
+      "description_text": "Build backend services.",
+      "detected_requirements": ["Experience with Python"],
+      "source_platform": "greenhouse",
+      "ats_posting_id": "2468",
+      "canonical_url": "https://boards.greenhouse.io/acme/jobs/2468"
+    }
+  ],
+  "bridging_duplicate": [
+    {
+      "source_url": "https://source-a.example/jobs/a",
+      "company": "First Company",
+      "title": "First Role",
+      "location": "New York, NY",
+      "description_text": "Posting A.",
+      "detected_requirements": [],
+      "source_platform": "source_a",
+      "ats_posting_id": "a",
+      "canonical_url": "https://source-a.example/jobs/a"
+    },
+    {
+      "source_url": "https://source-b.example/jobs/b",
+      "company": "Second Company",
+      "title": "Second Role",
+      "location": "New York, NY",
+      "description_text": "Posting B.",
+      "detected_requirements": [],
+      "source_platform": "source_b",
+      "ats_posting_id": "b",
+      "canonical_url": "https://source-b.example/jobs/b"
+    },
+    {
+      "source_url": "https://source-a.example/jobs/a",
+      "company": "Third Company",
+      "title": "Third Role",
+      "location": "New York, NY",
+      "description_text": "Posting C.",
+      "detected_requirements": [],
+      "source_platform": "source_b",
+      "ats_posting_id": "b",
+      "canonical_url": "https://source-a.example/jobs/a"
+    }
+  ],
+  "repeated_snapshot": [
+    {
+      "source_url": "https://boards.greenhouse.io/acme/jobs/12345",
+      "company": "Acme Corp",
+      "title": "Junior Software Engineer",
+      "location": "New York, NY",
+      "description_text": "Build dependable tools.",
+      "detected_requirements": ["Experience with Python"],
+      "source_platform": "greenhouse",
+      "ats_posting_id": "12345",
+      "canonical_url": "https://boards.greenhouse.io/acme/jobs/12345"
+    }
+  ]
+}

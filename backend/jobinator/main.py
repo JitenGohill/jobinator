@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from jobinator.config import Settings
 from jobinator.database import Base, create_database_engine, create_session_factory
 from jobinator.discovery.greenhouse import SourceFetchError, SourceNormalizationError
-from jobinator.discovery.models import IngestionResult, ScreenedJob
+from jobinator.discovery.models import IngestionResult, ScreenedOpportunity
 from jobinator.discovery.module import DiscoveryModule, SourceNotConfiguredError
 from jobinator.discovery.runtime import create_discovery_module
 from jobinator.profile.models import SavedProfile, SaveProfileRequest
@@ -94,8 +94,8 @@ def create_app(
                 detail="The canonical profile was changed by another request.",
             ) from error
 
-    @app.get("/api/discovery/jobs", response_model=list[ScreenedJob])
-    async def list_discovered(module: DiscoveryDependency) -> list[ScreenedJob]:
+    @app.get("/api/discovery/jobs", response_model=list[ScreenedOpportunity])
+    async def list_discovered(module: DiscoveryDependency) -> list[ScreenedOpportunity]:
         return module.list_discovered()
 
     @app.post("/api/discovery/ingest", response_model=IngestionResult)
