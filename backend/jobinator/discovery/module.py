@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from jobinator.database import CanonicalProfileRow, JobSnapshotRow
 from jobinator.discovery.errors import SourceDiscoveryError
 from jobinator.discovery.models import (
+    CandidateQueue,
     IngestionResult,
     JobSnapshot,
     ScreenedOpportunity,
@@ -18,6 +19,7 @@ from jobinator.discovery.models import (
     SourceIngestionDiagnostic,
 )
 from jobinator.discovery.opportunities import build_opportunities
+from jobinator.discovery.queue import CanonicalProfileRequiredError, build_candidate_queue
 from jobinator.discovery.screening import ScreeningPolicy
 from jobinator.profile.models import CanonicalProfile
 
@@ -137,6 +139,24 @@ class DiscoveryModule:
                 )
                 for opportunity in opportunities
             ]
+
+    def build_daily_queue(
+        self,
+        *,
+        minimum_score: int,
+        include_maybe: bool,
+    ) -> CandidateQueue:
+        with self._sessions() as session:
+            profile_row = session.get(CanonicalProfileRow, 1)
+            if profile_row is None:
+                raise CanonicalProfileRequiredError
+            profile = CanonicalProfile.model_validate(profile_row.payload)
+        return build_candidate_queue(
+            self.list_discovered(),
+            profile,
+            minimum_score=minimum_score,
+            include_maybe=include_maybe,
+        )
 
     @staticmethod
     def _to_snapshot(row: JobSnapshotRow) -> JobSnapshot:

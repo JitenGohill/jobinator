@@ -56,7 +56,7 @@ export function App() {
         <span className="local-badge">Local only</span>
       </header>
       <main>
-        <DiscoveryDashboard />
+        <DiscoveryDashboard profileVersion={savedProfile?.version ?? null} />
         <div className="page-heading">
           <p className="eyebrow">Source of truth</p>
           <h1>Canonical profile</h1>

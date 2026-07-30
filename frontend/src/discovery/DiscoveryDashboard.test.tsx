@@ -16,6 +16,14 @@ test("dashboard reports each source result after ingesting configured sources", 
     .mockResolvedValueOnce(
       new Response(
         JSON.stringify({
+          detail: "Save the canonical profile before generating a candidate queue.",
+        }),
+        {status: 409},
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
           discovered: 1,
           sources: [
             {
@@ -37,7 +45,15 @@ test("dashboard reports each source result after ingesting configured sources", 
         {status: 200},
       ),
     )
-    .mockResolvedValueOnce(new Response(JSON.stringify([]), {status: 200}));
+    .mockResolvedValueOnce(new Response(JSON.stringify([]), {status: 200}))
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: "Save the canonical profile before generating a candidate queue.",
+        }),
+        {status: 409},
+      ),
+    );
   vi.stubGlobal("fetch", fetch);
   const user = userEvent.setup();
 

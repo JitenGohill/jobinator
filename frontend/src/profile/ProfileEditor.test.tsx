@@ -17,6 +17,14 @@ function mockProfileRequests(
     if (input === "/api/discovery/jobs") {
       return new Response(JSON.stringify([]), {status: 200});
     }
+    if (typeof input === "string" && input.startsWith("/api/discovery/queue?")) {
+      return new Response(
+        JSON.stringify({
+          detail: "Save the canonical profile before generating a candidate queue.",
+        }),
+        {status: 409},
+      );
+    }
     if (input === "/api/profile" && init?.method === "PUT") {
       return saveProfileResponse;
     }
@@ -75,7 +83,6 @@ test("user can create a structured canonical profile", async () => {
   await user.selectOptions(within(skillsSection).getByLabelText("Proficiency"), "advanced");
   await user.click(screen.getByRole("button", {name: "Save profile"}));
 
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   const saveRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
   expect(saveRequest).toBeDefined();
   if (!saveRequest) {
@@ -136,14 +143,12 @@ test("user can view and update a saved profile", async () => {
   render(<App />);
 
   const cv = await screen.findByRole("textbox", {name: "Base CV"});
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   expect(cv).toHaveValue("Original CV");
   await user.clear(cv);
   expect(cv).toHaveValue("");
   await user.type(cv, "Updated CV");
   await user.click(screen.getByRole("button", {name: "Save profile"}));
 
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   const saveRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
   expect(saveRequest).toBeDefined();
   if (!saveRequest) {

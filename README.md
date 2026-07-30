@@ -99,6 +99,14 @@ route. The dashboard and command report results per source, so one changed or fa
 upstream response does not prevent successful sources from completing. Repeated
 ingestion and failed fetches never replace earlier snapshots.
 
+Once a canonical profile exists, the dashboard also generates a quality-first daily
+queue of up to 30 opportunities, targeting at least 25. Every non-rejected role gets
+transparent eligibility, role-fit, skill-overlap, company-quality, and
+application-effort scores. Stretch roles are capped at 25% of the queue. If the
+available market falls short, the dashboard keeps the current thresholds visible
+and offers explicit controls to include manual-review matches or lower the total
+score threshold; hard eligibility rules are never lowered.
+
 Saved updates use profile versions so an older browser tab cannot silently overwrite
 newer profile data.
 

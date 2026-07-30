@@ -57,6 +57,52 @@ class ScreenedOpportunity(Opportunity):
     screening: ScreeningResult
 
 
+class ScoreDimension(DiscoveryModel):
+    value: float = Field(ge=0, le=100)
+    explanation: str = Field(min_length=1)
+
+
+class OpportunityScore(DiscoveryModel):
+    total: float = Field(ge=0, le=100)
+    weights: dict[str, float]
+    eligibility: ScoreDimension
+    role_fit: ScoreDimension
+    skill_overlap: ScoreDimension
+    company_quality: ScoreDimension
+    application_effort: ScoreDimension
+
+
+class ScoredOpportunity(ScreenedOpportunity):
+    score: OpportunityScore
+
+
+class QueueTarget(DiscoveryModel):
+    minimum: int = Field(ge=1)
+    maximum: int = Field(ge=1)
+
+
+class QueueCriteria(DiscoveryModel):
+    minimum_score: int = Field(ge=0, le=100)
+    include_maybe: bool
+
+
+class ExpansionLever(DiscoveryModel):
+    id: Literal["include_maybe", "minimum_score"]
+    label: str
+    description: str
+    criteria: QueueCriteria
+
+
+class CandidateQueue(DiscoveryModel):
+    target: QueueTarget
+    criteria: QueueCriteria
+    candidates: list[ScoredOpportunity]
+    not_queued: list[ScoredOpportunity]
+    shortfall: int = Field(ge=0)
+    summary: str
+    expansion_levers: list[ExpansionLever]
+
+
 class SourceIngestionDiagnostic(DiscoveryModel):
     platform: SourcePlatform
     identifier: str

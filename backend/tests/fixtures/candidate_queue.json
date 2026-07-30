@@ -1,0 +1,92 @@
+{
+  "jobs": [
+    {
+      "source_url": "https://careers.alpha.example/backend-engineer",
+      "company": "Alpha Systems",
+      "title": "Junior Backend Engineer",
+      "location": "New York, NY",
+      "description_text": "Build Python and FastAPI services. 1 year of software engineering experience.",
+      "detected_requirements": ["Python", "FastAPI"],
+      "source_platform": "company",
+      "ats_posting_id": "alpha-1",
+      "canonical_url": "https://careers.alpha.example/backend-engineer"
+    },
+    {
+      "source_url": "https://jobs.greenhouse.io/beta/jobs/2",
+      "company": "Beta Tools",
+      "title": "Junior Full-Stack Engineer",
+      "location": "US Remote",
+      "description_text": "Build React interfaces and Java services. 2 years of software engineering experience.",
+      "detected_requirements": ["React", "Java", "Clear written communication"],
+      "source_platform": "greenhouse",
+      "ats_posting_id": "beta-2",
+      "canonical_url": "https://jobs.greenhouse.io/beta/jobs/2"
+    },
+    {
+      "source_url": "https://jobs.greenhouse.io/epsilon/jobs/7",
+      "company": "Epsilon Operations",
+      "title": "Junior Internal Tools Engineer",
+      "location": "New York, NY",
+      "description_text": "Build SQLite-backed internal tools. 1 year of software engineering experience.",
+      "detected_requirements": ["SQLite"],
+      "source_platform": "greenhouse",
+      "ats_posting_id": "epsilon-7",
+      "canonical_url": "https://jobs.greenhouse.io/epsilon/jobs/7"
+    },
+    {
+      "source_url": "https://jobs.lever.co/gamma/3",
+      "company": "Gamma Cloud",
+      "title": "Platform Engineer",
+      "location": "US Remote",
+      "description_text": "Build Python platform services. 3 years of software engineering experience.",
+      "detected_requirements": ["Python"],
+      "source_platform": "lever",
+      "ats_posting_id": "gamma-3",
+      "canonical_url": "https://jobs.lever.co/gamma/3"
+    },
+    {
+      "source_url": "https://jobs.ashbyhq.com/delta/4",
+      "company": "Delta AI",
+      "title": "AI Applications Engineer",
+      "location": "Chicago, IL",
+      "description_text": "Build TypeScript AI applications. 3 years of software engineering experience.",
+      "detected_requirements": ["TypeScript"],
+      "source_platform": "ashby",
+      "ats_posting_id": "delta-4",
+      "canonical_url": "https://jobs.ashbyhq.com/delta/4"
+    },
+    {
+      "source_url": "https://jobs.example.com/agency/5",
+      "company": "BrightPath Staffing",
+      "title": "Junior Backend Engineer",
+      "location": "New York, NY",
+      "description_text": "Staffing agency direct-hire Python role for client Northstar. Salary $90,000. 1 year of software engineering experience.",
+      "detected_requirements": ["Python"],
+      "source_platform": "job_board",
+      "ats_posting_id": "agency-5",
+      "canonical_url": "https://jobs.example.com/agency/5"
+    },
+    {
+      "source_url": "https://jobs.example.com/zeta/8",
+      "company": "Zeta Labs",
+      "title": "Junior AI Engineer",
+      "location": "Chicago, IL",
+      "description_text": "Build Rust AI applications. 1 year of software engineering experience.",
+      "detected_requirements": ["Rust"],
+      "source_platform": "job_board",
+      "ats_posting_id": "zeta-8",
+      "canonical_url": "https://jobs.example.com/zeta/8"
+    },
+    {
+      "source_url": "https://careers.omega.example/senior",
+      "company": "Omega Corp",
+      "title": "Senior Backend Engineer",
+      "location": "New York, NY",
+      "description_text": "Build Python services. Five years of software engineering experience.",
+      "detected_requirements": ["Python"],
+      "source_platform": "company",
+      "ats_posting_id": "omega-6",
+      "canonical_url": "https://careers.omega.example/senior"
+    }
+  ]
+}

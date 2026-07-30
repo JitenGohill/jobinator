@@ -6,12 +6,13 @@ from datetime import datetime
 from typing import Annotated, cast
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 
 from jobinator.config import Settings
 from jobinator.database import Base, create_database_engine, create_session_factory
-from jobinator.discovery.models import IngestionResult, ScreenedOpportunity
+from jobinator.discovery.models import CandidateQueue, IngestionResult, ScreenedOpportunity
 from jobinator.discovery.module import DiscoveryModule, SourceNotConfiguredError
+from jobinator.discovery.queue import CanonicalProfileRequiredError
 from jobinator.discovery.runtime import create_discovery_module
 from jobinator.profile.models import SavedProfile, SaveProfileRequest
 from jobinator.profile.module import (
@@ -105,6 +106,23 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No job source is configured.",
+            ) from error
+
+    @app.get("/api/discovery/queue", response_model=CandidateQueue)
+    async def get_candidate_queue(
+        module: DiscoveryDependency,
+        minimum_score: Annotated[int, Query(ge=0, le=100)] = 60,
+        include_maybe: bool = False,
+    ) -> CandidateQueue:
+        try:
+            return module.build_daily_queue(
+                minimum_score=minimum_score,
+                include_maybe=include_maybe,
+            )
+        except CanonicalProfileRequiredError as error:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Save the canonical profile before generating a candidate queue.",
             ) from error
     return app
 
