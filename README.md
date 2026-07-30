@@ -59,16 +59,24 @@ The profile editor supports:
 - Supporting links and search constraints
 - Writing samples and reusable STAR stories
 
-## Discover Greenhouse roles
+## Discover ATS roles
 
-Configure a public Greenhouse board in `.env`:
+Configure one or more public Greenhouse, Lever, or Ashby sources in `.env`:
 
 ```dotenv
 JOBINATOR_GREENHOUSE_BOARD_TOKEN=acme
 JOBINATOR_GREENHOUSE_COMPANY=Acme Corp
+
+JOBINATOR_LEVER_SITE=acme
+JOBINATOR_LEVER_COMPANY=Acme Corp
+
+JOBINATOR_ASHBY_BOARD=acme
+JOBINATOR_ASHBY_COMPANY=Acme Corp
 ```
 
-The board token is the segment used by `https://boards.greenhouse.io/<token>`.
+The source identifier is the final segment in the source's hosted jobs URL:
+`boards.greenhouse.io/<token>`, `jobs.lever.co/<site>`, or
+`jobs.ashbyhq.com/<board>`.
 Use **Ingest configured sources** in the dashboard, or run the same source-adapter
 entry point independently:
 
@@ -76,10 +84,12 @@ entry point independently:
 backend/.venv/bin/jobinator-ingest
 ```
 
-Each discovery creates a new immutable local snapshot containing the original
-Greenhouse posting and normalized role details. Equivalent snapshots are presented
-as one opportunity with their contributing sources and the preferred official or ATS
-apply route. Repeated ingestion and failed fetches never replace earlier snapshots.
+Each discovery creates a new immutable local snapshot containing the original ATS
+posting and normalized role details. Equivalent snapshots are presented as one
+opportunity with their contributing sources and the preferred official or ATS apply
+route. The dashboard and command report results per source, so one changed or failed
+upstream response does not prevent successful sources from completing. Repeated
+ingestion and failed fetches never replace earlier snapshots.
 
 Saved updates use profile versions so an older browser tab cannot silently overwrite
 newer profile data.
@@ -103,5 +113,5 @@ npm run typecheck
 npm run build
 ```
 
-Tests use deterministic profile and Greenhouse fixtures, temporary SQLite databases,
-and no secrets or live network calls.
+Tests use deterministic profile and ATS fixtures, temporary SQLite databases, and no
+secrets or live network calls.

@@ -1,0 +1,27 @@
+{
+  "postings": [
+    {
+      "id": "lever-123",
+      "text": "Junior Software Engineer",
+      "categories": {
+        "location": "New York, NY",
+        "team": "Engineering",
+        "commitment": "Full-time"
+      },
+      "descriptionPlain": "Build dependable tools for our operations team.",
+      "lists": [
+        {
+          "text": "What we're looking for",
+          "content": "<ul><li>Experience with Python</li><li>Clear written communication</li></ul>"
+        }
+      ],
+      "hostedUrl": "https://jobs.lever.co/acme/lever-123",
+      "applyUrl": "https://jobs.lever.co/acme/lever-123/apply"
+    }
+  ],
+  "malformed_response": [
+    {
+      "id": "missing-required-fields"
+    }
+  ]
+}

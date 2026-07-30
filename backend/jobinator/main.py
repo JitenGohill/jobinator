@@ -10,7 +10,6 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 
 from jobinator.config import Settings
 from jobinator.database import Base, create_database_engine, create_session_factory
-from jobinator.discovery.greenhouse import SourceFetchError, SourceNormalizationError
 from jobinator.discovery.models import IngestionResult, ScreenedOpportunity
 from jobinator.discovery.module import DiscoveryModule, SourceNotConfiguredError
 from jobinator.discovery.runtime import create_discovery_module
@@ -107,12 +106,6 @@ def create_app(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No job source is configured.",
             ) from error
-        except (SourceFetchError, SourceNormalizationError) as error:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="The configured job source could not be ingested.",
-            ) from error
-
     return app
 
 

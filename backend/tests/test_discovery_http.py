@@ -25,6 +25,16 @@ def load_greenhouse_fixture() -> dict[str, Any]:
     return json.loads(fixture_path.read_text())
 
 
+def load_lever_fixture() -> dict[str, Any]:
+    fixture_path = Path(__file__).parent / "fixtures" / "lever_postings.json"
+    return json.loads(fixture_path.read_text())
+
+
+def load_ashby_fixture() -> dict[str, Any]:
+    fixture_path = Path(__file__).parent / "fixtures" / "ashby_postings.json"
+    return json.loads(fixture_path.read_text())
+
+
 def load_screening_fixture() -> dict[str, Any]:
     fixture_path = Path(__file__).parent / "fixtures" / "screening_jobs.json"
     return json.loads(fixture_path.read_text())
@@ -164,7 +174,18 @@ async def test_configured_greenhouse_board_is_ingested_as_a_discovered_snapshot(
 
     await source_client.aclose()
     assert ingestion_response.status_code == 200
-    assert ingestion_response.json() == {"discovered": 1}
+    assert ingestion_response.json() == {
+        "discovered": 1,
+        "sources": [
+            {
+                "platform": "greenhouse",
+                "identifier": "acme",
+                "status": "succeeded",
+                "discovered": 1,
+                "error": None,
+            }
+        ],
+    }
     assert discovered_response.status_code == 200
     expected_snapshot = {
         "id": 1,
@@ -204,6 +225,179 @@ async def test_configured_greenhouse_board_is_ingested_as_a_discovered_snapshot(
                 ],
             },
         }
+    ]
+
+
+@pytest.mark.anyio
+async def test_configured_lever_and_ashby_sources_normalize_and_merge_as_one_opportunity(
+    tmp_path: Path,
+) -> None:
+    lever_fixture = load_lever_fixture()
+    ashby_fixture = load_ashby_fixture()
+
+    def source_response(request: httpx.Request) -> httpx.Response:
+        if request.url == "https://api.lever.co/v0/postings/acme?mode=json":
+            return httpx.Response(200, json=lever_fixture["postings"])
+        if request.url == "https://api.ashbyhq.com/posting-api/job-board/acme":
+            return httpx.Response(200, json={"jobs": ashby_fixture["jobs"]})
+        raise AssertionError(f"Unexpected source URL: {request.url}")
+
+    source_client = httpx.AsyncClient(transport=httpx.MockTransport(source_response))
+    app = create_app(
+        database_url=f"sqlite:///{tmp_path / 'jobinator.db'}",
+        settings=Settings(
+            lever_site="acme",
+            lever_company="Acme Corp",
+            ashby_board="acme",
+            ashby_company="Acme Corp",
+        ),
+        source_client=source_client,
+        clock=lambda: datetime(2026, 7, 29, 12, 0, tzinfo=timezone.utc),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        ingestion_response = await client.post("/api/discovery/ingest")
+        discovered_response = await client.get("/api/discovery/jobs")
+
+    await source_client.aclose()
+    assert ingestion_response.status_code == 200
+    assert ingestion_response.json() == {
+        "discovered": 2,
+        "sources": [
+            {
+                "platform": "lever",
+                "identifier": "acme",
+                "status": "succeeded",
+                "discovered": 1,
+                "error": None,
+            },
+            {
+                "platform": "ashby",
+                "identifier": "acme",
+                "status": "succeeded",
+                "discovered": 1,
+                "error": None,
+            },
+        ],
+    }
+    opportunities = discovered_response.json()
+    assert len(opportunities) == 1
+    assert opportunities[0]["screening"]["lane"] == "eligible"
+    snapshots = {
+        snapshot["source_platform"]: snapshot
+        for snapshot in opportunities[0]["snapshots"]
+    }
+    assert snapshots["lever"] == {
+        "id": 1,
+        "source_url": "https://jobs.lever.co/acme/lever-123",
+        "fetched_at": "2026-07-29T12:00:00Z",
+        "company": "Acme Corp",
+        "title": "Junior Software Engineer",
+        "location": "New York, NY",
+        "description_text": (
+            "Build dependable tools for our operations team.\n"
+            "What we're looking for\n"
+            "Experience with Python\n"
+            "Clear written communication"
+        ),
+        "detected_requirements": [
+            "Experience with Python",
+            "Clear written communication",
+        ],
+        "source_platform": "lever",
+        "ats_posting_id": "lever-123",
+        "canonical_url": "https://jobs.lever.co/acme/lever-123",
+        "raw_posting": lever_fixture["postings"][0],
+    }
+    assert snapshots["ashby"] == {
+        "id": 2,
+        "source_url": "https://jobs.ashbyhq.com/acme/ashby-456",
+        "fetched_at": "2026-07-29T12:00:00Z",
+        "company": "Acme Corp",
+        "title": "Junior Software Engineer",
+        "location": "New York, NY",
+        "description_text": (
+            "Build dependable tools for our operations team.\n"
+            "What we're looking for\n"
+            "Experience with Python\n"
+            "Clear written communication"
+        ),
+        "detected_requirements": [
+            "Experience with Python",
+            "Clear written communication",
+        ],
+        "source_platform": "ashby",
+        "ats_posting_id": "ashby-456",
+        "canonical_url": "https://jobs.ashbyhq.com/acme/ashby-456",
+        "raw_posting": ashby_fixture["jobs"][0],
+    }
+
+
+@pytest.mark.anyio
+async def test_changed_ats_responses_are_reported_without_blocking_successful_sources(
+    tmp_path: Path,
+) -> None:
+    greenhouse_fixture = load_greenhouse_fixture()
+    lever_fixture = load_lever_fixture()
+    ashby_fixture = load_ashby_fixture()
+
+    def source_response(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "boards-api.greenhouse.io":
+            return httpx.Response(200, json=greenhouse_fixture)
+        if request.url.host == "api.lever.co":
+            return httpx.Response(200, json=lever_fixture["malformed_response"])
+        if request.url.host == "api.ashbyhq.com":
+            return httpx.Response(200, json=ashby_fixture["malformed_response"])
+        raise AssertionError(f"Unexpected source URL: {request.url}")
+
+    source_client = httpx.AsyncClient(transport=httpx.MockTransport(source_response))
+    app = create_app(
+        database_url=f"sqlite:///{tmp_path / 'jobinator.db'}",
+        settings=Settings(
+            greenhouse_board_token="acme",
+            greenhouse_company="Acme Corp",
+            lever_site="acme",
+            lever_company="Acme Corp",
+            ashby_board="acme",
+            ashby_company="Acme Corp",
+        ),
+        source_client=source_client,
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        ingestion_response = await client.post("/api/discovery/ingest")
+        discovered_response = await client.get("/api/discovery/jobs")
+
+    await source_client.aclose()
+    assert ingestion_response.status_code == 200
+    assert ingestion_response.json() == {
+        "discovered": 1,
+        "sources": [
+            {
+                "platform": "greenhouse",
+                "identifier": "acme",
+                "status": "succeeded",
+                "discovered": 1,
+                "error": None,
+            },
+            {
+                "platform": "lever",
+                "identifier": "acme",
+                "status": "failed",
+                "discovered": 0,
+                "error": "Lever returned an invalid posting.",
+            },
+            {
+                "platform": "ashby",
+                "identifier": "acme",
+                "status": "failed",
+                "discovered": 0,
+                "error": "Ashby returned an invalid posting.",
+            },
+        ],
+    }
+    assert [job["title"] for job in discovered_response.json()] == [
+        "Junior Software Engineer"
     ]
 
 
@@ -279,8 +473,20 @@ async def test_repeated_ingestion_keeps_each_snapshot_under_one_opportunity(
         second_ingestion = await client.post("/api/discovery/ingest")
         response = await client.get("/api/discovery/jobs")
 
-    assert first_ingestion.json() == {"discovered": 1}
-    assert second_ingestion.json() == {"discovered": 1}
+    expected_ingestion = {
+        "discovered": 1,
+        "sources": [
+            {
+                "platform": "greenhouse",
+                "identifier": "greenhouse",
+                "status": "succeeded",
+                "discovered": 1,
+                "error": None,
+            }
+        ],
+    }
+    assert first_ingestion.json() == expected_ingestion
+    assert second_ingestion.json() == expected_ingestion
     opportunities = response.json()
     assert len(opportunities) == 1
     assert [snapshot["fetched_at"] for snapshot in opportunities[0]["snapshots"]] == [
@@ -329,9 +535,23 @@ async def test_ingestion_failure_preserves_snapshots_without_logging_upstream_re
 
     await source_client.aclose()
     assert successful_response.status_code == 200
-    assert failed_response.status_code == 502
+    assert failed_response.status_code == 200
+    expected_error = (
+        "Greenhouse request failed (HTTPStatusError)."
+        if failure_kind == "fetch"
+        else "Greenhouse returned an invalid posting."
+    )
     assert failed_response.json() == {
-        "detail": "The configured job source could not be ingested."
+        "discovered": 0,
+        "sources": [
+            {
+                "platform": "greenhouse",
+                "identifier": "acme",
+                "status": "failed",
+                "discovered": 0,
+                "error": expected_error,
+            }
+        ],
     }
     assert len(discovered_response.json()) == 1
     assert "private-upstream-response" not in caplog.text

@@ -52,5 +52,14 @@ class ScreenedOpportunity(Opportunity):
     screening: ScreeningResult
 
 
+class SourceIngestionDiagnostic(DiscoveryModel):
+    platform: SourcePlatform
+    identifier: str
+    status: Literal["succeeded", "failed"]
+    discovered: int = Field(ge=0)
+    error: str | None
+
+
 class IngestionResult(DiscoveryModel):
     discovered: int = Field(ge=0)
+    sources: list[SourceIngestionDiagnostic]

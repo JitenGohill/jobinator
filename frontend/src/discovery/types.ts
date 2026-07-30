@@ -29,4 +29,13 @@ export type ScreeningLane = "eligible" | "stretch" | "maybe" | "rejected";
 
 export interface IngestionResult {
   discovered: number;
+  sources: SourceIngestionDiagnostic[];
+}
+
+export interface SourceIngestionDiagnostic {
+  platform: string;
+  identifier: string;
+  status: "succeeded" | "failed";
+  discovered: number;
+  error: string | null;
 }

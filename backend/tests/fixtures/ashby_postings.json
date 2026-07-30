@@ -1,0 +1,21 @@
+{
+  "jobs": [
+    {
+      "title": "Junior Software Engineer",
+      "location": "New York, NY",
+      "descriptionPlain": "Build dependable tools for our operations team.\nWhat we're looking for\nExperience with Python\nClear written communication",
+      "descriptionHtml": "<p>Build dependable tools for our operations team.</p><h2>What we're looking for</h2><ul><li>Experience with Python</li><li>Clear written communication</li></ul>",
+      "publishedAt": "2026-07-20T10:00:00Z",
+      "jobUrl": "https://jobs.ashbyhq.com/acme/ashby-456",
+      "applyUrl": "https://jobs.ashbyhq.com/acme/ashby-456/application",
+      "isListed": true
+    }
+  ],
+  "malformed_response": {
+    "jobs": [
+      {
+        "publishedAt": "2026-07-20T10:00:00Z"
+      }
+    ]
+  }
+}

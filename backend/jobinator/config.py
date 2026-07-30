@@ -13,3 +13,7 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     greenhouse_board_token: str | None = None
     greenhouse_company: str | None = None
+    lever_site: str | None = None
+    lever_company: str | None = None
+    ashby_board: str | None = None
+    ashby_company: str | None = None

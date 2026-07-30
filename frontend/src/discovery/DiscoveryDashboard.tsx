@@ -2,12 +2,13 @@ import {useEffect, useState} from "react";
 
 import {DiscoveryLane} from "./DiscoveryLane";
 import {ingestConfiguredSources, loadDiscoveredJobs} from "./discoveryClient";
-import type {DiscoveredJob} from "./types";
+import type {DiscoveredJob, IngestionResult} from "./types";
 
 export function DiscoveryDashboard() {
   const [jobs, setJobs] = useState<DiscoveredJob[]>([]);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ingestionResult, setIngestionResult] = useState<IngestionResult | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -30,8 +31,9 @@ export function DiscoveryDashboard() {
   const ingest = async () => {
     setIngesting(true);
     setError(null);
+    setIngestionResult(null);
     try {
-      await ingestConfiguredSources();
+      setIngestionResult(await ingestConfiguredSources());
       setJobs(await loadDiscoveredJobs());
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not ingest configured sources.");
@@ -46,6 +48,24 @@ export function DiscoveryDashboard() {
         <p className="error-message discovery-error" role="alert">
           {error}
         </p>
+      )}
+      {ingestionResult && (
+        <section className="ingestion-result" aria-label="Source ingestion result">
+          <p role="status">
+            {ingestionResult.discovered}{" "}
+            {ingestionResult.discovered === 1 ? "snapshot" : "snapshots"} discovered
+          </p>
+          <ul>
+            {ingestionResult.sources.map((source) => (
+              <li key={`${source.platform}:${source.identifier}`}>
+                {source.platform} ({source.identifier}):{" "}
+                {source.status === "succeeded"
+                  ? `discovered ${source.discovered}`
+                  : source.error}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       <DiscoveryLane jobs={jobs} ingesting={ingesting} onIngest={ingest} />
     </>

@@ -8,7 +8,6 @@ import httpx
 
 from jobinator.config import Settings
 from jobinator.database import Base, create_database_engine, create_session_factory
-from jobinator.discovery.greenhouse import SourceFetchError, SourceNormalizationError
 from jobinator.discovery.module import DiscoveryModule, SourceNotConfiguredError
 from jobinator.discovery.runtime import create_discovery_module
 
@@ -19,13 +18,19 @@ async def run_ingestion(module: DiscoveryModule, output: TextIO) -> int:
     except SourceNotConfiguredError:
         output.write("No job source is configured.\n")
         return 2
-    except (SourceFetchError, SourceNormalizationError):
-        output.write("The configured job source could not be ingested.\n")
-        return 1
-
     noun = "job snapshot" if result.discovered == 1 else "job snapshots"
     output.write(f"Discovered {result.discovered} {noun}.\n")
-    return 0
+    for source in result.sources:
+        if source.status == "succeeded":
+            output.write(
+                f"{source.platform} ({source.identifier}): "
+                f"discovered {source.discovered}.\n"
+            )
+        else:
+            output.write(
+                f"{source.platform} ({source.identifier}): failed: {source.error}\n"
+            )
+    return 1 if any(source.status == "failed" for source in result.sources) else 0
 
 
 async def _run_configured_ingestion() -> int:

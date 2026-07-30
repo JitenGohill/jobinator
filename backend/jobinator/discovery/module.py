@@ -9,11 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from jobinator.database import CanonicalProfileRow, JobSnapshotRow
+from jobinator.discovery.errors import SourceDiscoveryError
 from jobinator.discovery.models import (
     IngestionResult,
     JobSnapshot,
     ScreenedOpportunity,
     SourceConfiguration,
+    SourceIngestionDiagnostic,
 )
 from jobinator.discovery.opportunities import build_opportunities
 from jobinator.discovery.screening import ScreeningPolicy
@@ -56,10 +58,21 @@ class DiscoveryModule:
             raise SourceNotConfiguredError
 
         snapshots: list[JobSnapshot] = []
+        diagnostics: list[SourceIngestionDiagnostic] = []
         for source in self._sources:
             adapter = self._adapters[source.platform]
             try:
-                snapshots.extend(await adapter.discover(source, self._clock()))
+                discovered = await adapter.discover(source, self._clock())
+                snapshots.extend(discovered)
+                diagnostics.append(
+                    SourceIngestionDiagnostic(
+                        platform=source.platform,
+                        identifier=source.identifier,
+                        status="succeeded",
+                        discovered=len(discovered),
+                        error=None,
+                    )
+                )
             except Exception as error:
                 logger.warning(
                     "Discovery failed for %s source %s (%s).",
@@ -67,7 +80,20 @@ class DiscoveryModule:
                     source.identifier,
                     type(error).__name__,
                 )
-                raise
+                message = (
+                    str(error)
+                    if isinstance(error, SourceDiscoveryError)
+                    else f"{source.platform.title()} source failed unexpectedly."
+                )
+                diagnostics.append(
+                    SourceIngestionDiagnostic(
+                        platform=source.platform,
+                        identifier=source.identifier,
+                        status="failed",
+                        discovered=0,
+                        error=message,
+                    )
+                )
 
         with self._sessions.begin() as session:
             for snapshot in snapshots:
@@ -86,7 +112,7 @@ class DiscoveryModule:
                         raw_posting=snapshot.raw_posting,
                     )
                 )
-        return IngestionResult(discovered=len(snapshots))
+        return IngestionResult(discovered=len(snapshots), sources=diagnostics)
 
     def list_discovered(self) -> list[ScreenedOpportunity]:
         with self._sessions() as session:
