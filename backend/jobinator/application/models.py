@@ -88,6 +88,8 @@ class GeneratedApplicationPlan(ApplicationModel):
 
 
 class ApplicationPacket(ApplicationModel):
+    id: int = Field(ge=1)
+    profile_version: int = Field(ge=1)
     opportunity_id: int
     score: OpportunityScore
     job_snapshot: JobSnapshot
@@ -100,3 +102,22 @@ class ApplicationPacket(ApplicationModel):
     cover_letter: str | None
     screening_answers: list[ScreeningAnswer]
     generation: GenerationDetails
+
+
+DocumentType = Literal["cv", "cover_letter"]
+ExportFormat = Literal["markdown", "pdf"]
+
+
+class ExportedDocument(ApplicationModel):
+    document_type: DocumentType
+    version: int = Field(ge=1)
+    preview_markdown: str
+    markdown_url: str
+    pdf_url: str
+
+
+class ExportBundle(ApplicationModel):
+    packet_id: int = Field(ge=1)
+    profile_version: int = Field(ge=1)
+    job_snapshot_id: int = Field(ge=1)
+    documents: list[ExportedDocument]

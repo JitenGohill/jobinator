@@ -152,6 +152,76 @@ async def test_packet_is_complete_truthful_and_deterministic_without_live_ai(
 
 
 @pytest.mark.anyio
+async def test_reviewed_packet_exports_versioned_cv_as_markdown_and_pdf(
+    tmp_path: Path,
+    load_fixture: Callable[[str], Any],
+) -> None:
+    profile = load_fixture("profile.json")
+    posting = load_fixture("candidate_queue.json")["jobs"][0]
+    export_directory = tmp_path / "exports"
+    app = create_app(
+        database_url=f"sqlite:///{tmp_path / 'jobinator.db'}",
+        export_directory=export_directory,
+    )
+    configure_fixture_discovery(
+        app,
+        [posting],
+        lambda: datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.put("/api/profile", json={"profile": profile, "expected_version": None})
+        await client.post("/api/discovery/ingest")
+        packet_response = await client.post("/api/application-packets/1", json={})
+        packet = packet_response.json()
+        export_response = await client.post(
+            f"/api/application-packets/{packet['id']}/exports"
+        )
+        exported = export_response.json()
+        markdown_response = await client.get(exported["documents"][0]["markdown_url"])
+        pdf_response = await client.get(exported["documents"][0]["pdf_url"])
+        updated_profile = {**profile, "base_cv": "A newer canonical CV."}
+        await client.put(
+            "/api/profile",
+            json={"profile": updated_profile, "expected_version": 1},
+        )
+        packet_profile_response = await client.get(
+            f"/api/application-packets/{packet['id']}/profile"
+        )
+
+    assert packet_response.status_code == 200
+    assert packet["profile_version"] == 1
+    assert packet["job_snapshot"]["id"] == 1
+    assert export_response.status_code == 201
+    assert exported == {
+        "packet_id": packet["id"],
+        "profile_version": 1,
+        "job_snapshot_id": 1,
+        "documents": [
+            {
+                "document_type": "cv",
+                "version": 1,
+                "preview_markdown": packet["tailored_cv_draft"],
+                "markdown_url": (
+                    f"/api/application-packets/{packet['id']}/exports/cv/1/markdown"
+                ),
+                "pdf_url": f"/api/application-packets/{packet['id']}/exports/cv/1/pdf",
+            }
+        ],
+    }
+    assert markdown_response.status_code == 200
+    assert markdown_response.text == packet["tailored_cv_draft"]
+    assert markdown_response.headers["content-type"].startswith("text/markdown")
+    assert pdf_response.status_code == 200
+    assert pdf_response.content.startswith(b"%PDF-")
+    assert pdf_response.headers["content-type"] == "application/pdf"
+    assert packet_profile_response.status_code == 200
+    assert packet_profile_response.json()["version"] == 1
+    assert packet_profile_response.json()["profile"] == profile
+    assert sorted(path.suffix for path in export_directory.rglob("*.*")) == [".md", ".pdf"]
+
+
+@pytest.mark.anyio
 async def test_cover_letter_is_generated_when_posting_makes_it_useful(
     tmp_path: Path,
     load_fixture: Callable[[str], Any],
@@ -186,6 +256,91 @@ async def test_cover_letter_is_generated_when_posting_makes_it_useful(
     cover_letter = response.json()["cover_letter"]
     assert profile["writing_samples"][0]["content"] in cover_letter
     assert "Junior Backend Engineer" in cover_letter
+
+
+@pytest.mark.anyio
+async def test_each_export_versions_cv_and_optional_cover_letter_together(
+    tmp_path: Path,
+    load_fixture: Callable[[str], Any],
+) -> None:
+    profile = load_fixture("profile.json")
+    posting = load_fixture("candidate_queue.json")["jobs"][0]
+    app = create_app(
+        database_url=f"sqlite:///{tmp_path / 'jobinator.db'}",
+        export_directory=tmp_path / "exports",
+    )
+    configure_fixture_discovery(
+        app,
+        [posting],
+        lambda: datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.put("/api/profile", json={"profile": profile, "expected_version": None})
+        await client.post("/api/discovery/ingest")
+        packet_response = await client.post(
+            "/api/application-packets/1",
+            json={"cover_letter_requested": True},
+        )
+        packet = packet_response.json()
+        first = (
+            await client.post(f"/api/application-packets/{packet['id']}/exports")
+        ).json()
+        second = (
+            await client.post(f"/api/application-packets/{packet['id']}/exports")
+        ).json()
+        first_pdf = await client.get(first["documents"][0]["pdf_url"])
+        second_pdf = await client.get(second["documents"][0]["pdf_url"])
+
+    assert [document["document_type"] for document in first["documents"]] == [
+        "cv",
+        "cover_letter",
+    ]
+    assert [document["version"] for document in first["documents"]] == [1, 1]
+    assert [document["version"] for document in second["documents"]] == [2, 2]
+    assert first["documents"][1]["preview_markdown"] == packet["cover_letter"]
+    assert second_pdf.content == first_pdf.content
+
+
+@pytest.mark.anyio
+async def test_pdf_export_preserves_content_across_multiple_pages(
+    tmp_path: Path,
+    load_fixture: Callable[[str], Any],
+) -> None:
+    profile = load_fixture("profile.json")
+    profile["base_cv"] = "\n".join(
+        (
+            f"CV evidence line {number:02d}"
+            if number < 70
+            else "CV evidence line 70 — José's résumé Ω"
+        )
+        for number in range(1, 71)
+    )
+    posting = load_fixture("candidate_queue.json")["jobs"][0]
+    app = create_app(
+        database_url=f"sqlite:///{tmp_path / 'jobinator.db'}",
+        export_directory=tmp_path / "exports",
+    )
+    configure_fixture_discovery(
+        app,
+        [posting],
+        lambda: datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.put("/api/profile", json={"profile": profile, "expected_version": None})
+        await client.post("/api/discovery/ingest")
+        packet = (await client.post("/api/application-packets/1", json={})).json()
+        exported = (
+            await client.post(f"/api/application-packets/{packet['id']}/exports")
+        ).json()
+        pdf = await client.get(exported["documents"][0]["pdf_url"])
+
+    assert b"/ToUnicode" in pdf.content
+    assert b"<00E9>" in pdf.content
+    assert b"<2014>" in pdf.content
+    assert b"<03A9>" in pdf.content
+    assert pdf.content.count(b"/Type /Page") >= 2
 
 
 @pytest.mark.anyio

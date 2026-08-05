@@ -132,6 +132,12 @@ link, estimated effort, matched profile evidence, missing requirements, a tailor
 draft, and risk flags. Cover letters are omitted unless requested or the posting asks
 for one. Screening answers are always marked as requiring human review.
 
+From the daily candidate queue, choose **Prepare review packet** to inspect the exact
+Markdown for the tailored CV and any cover letter. After review, **Export Markdown and
+PDF** creates a new document version and provides both downloads. Packet, profile, job
+snapshot, and document versions remain linked in the local database. Generated files
+are written beneath `exports/`, which is excluded from version control by default.
+
 Packet generation defaults to the deterministic fake provider, so development and
 tests make no live AI calls. To use OpenAI, configure the provider, model, and API key:
 

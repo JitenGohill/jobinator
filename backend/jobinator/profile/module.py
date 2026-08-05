@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from jobinator.database import CanonicalProfileRow
+from jobinator.database import CanonicalProfileRow, CanonicalProfileVersionRow
 from jobinator.profile.models import CanonicalProfile, SavedProfile
 
 
@@ -56,6 +56,14 @@ class ProfileModule:
                 row.version += 1
                 row.payload = profile.model_dump(mode="json")
                 row.updated_at = now
+
+            session.add(
+                CanonicalProfileVersionRow(
+                    version=row.version,
+                    payload=profile.model_dump(mode="json"),
+                    updated_at=now,
+                )
+            )
 
             session.flush()
             return self._to_saved_profile(row)

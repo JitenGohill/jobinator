@@ -1,3 +1,14 @@
+import {useState} from "react";
+
+import {
+  exportApplicationPacket,
+  prepareApplicationPacket,
+} from "../application/applicationClient";
+import type {
+  ApplicationPacketPreview,
+  ExportBundle,
+  ExportedDocument,
+} from "../application/types";
 import type {
   CandidateQueue,
   OpportunityScore,
@@ -48,6 +59,39 @@ function CandidateCard({
   candidate: ScoredOpportunity;
   position: number;
 }) {
+  const [packet, setPacket] = useState<ApplicationPacketPreview | null>(null);
+  const [exports, setExports] = useState<ExportBundle | null>(null);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const prepare = async () => {
+    setWorking(true);
+    setError(null);
+    try {
+      setPacket(await prepareApplicationPacket(candidate.id));
+      setExports(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not prepare the packet.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const exportDocuments = async () => {
+    if (!packet) {
+      return;
+    }
+    setWorking(true);
+    setError(null);
+    try {
+      setExports(await exportApplicationPacket(packet.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not export the documents.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
     <article className="candidate-card">
       <div className="candidate-heading">
@@ -69,15 +113,85 @@ function CandidateCard({
         </div>
       </div>
       <ScoreBreakdown score={candidate.score} />
-      <a
-        className="candidate-apply-link"
-        href={candidate.preferred_apply_url}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Apply via preferred source
-      </a>
+      <div className="candidate-actions">
+        <button type="button" disabled={working} onClick={() => void prepare()}>
+          {working && !packet ? "Preparing…" : "Prepare review packet"}
+        </button>
+        <a
+          className="candidate-apply-link"
+          href={candidate.preferred_apply_url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Apply via preferred source
+        </a>
+      </div>
+      {error && <p className="error-message" role="alert">{error}</p>}
+      {packet && (
+        <section
+          className="packet-preview"
+          aria-label={`Application packet for ${candidate.title}`}
+        >
+          <div className="packet-preview-heading">
+            <div>
+              <h4>Review documents</h4>
+              <p>
+                Profile v{packet.profile_version} · Snapshot {packet.job_snapshot.id} · Packet{" "}
+                {packet.id}
+              </p>
+            </div>
+            <button type="button" disabled={working} onClick={() => void exportDocuments()}>
+              {working ? "Exporting…" : "Export Markdown and PDF"}
+            </button>
+          </div>
+          <DocumentPreview title="Tailored CV" markdown={packet.tailored_cv_draft} />
+          {packet.cover_letter && (
+            <DocumentPreview title="Cover letter" markdown={packet.cover_letter} />
+          )}
+          {exports && <ExportLinks documents={exports.documents} />}
+        </section>
+      )}
     </article>
+  );
+}
+
+function DocumentPreview({title, markdown}: {title: string; markdown: string}) {
+  return (
+    <details className="document-preview" open>
+      <summary>{title} Markdown preview</summary>
+      <pre>
+        {markdown.split("\n").map((line, index) => (
+          <span key={index}>{line || " "}</span>
+        ))}
+      </pre>
+    </details>
+  );
+}
+
+function ExportLinks({documents}: {documents: ExportedDocument[]}) {
+  return (
+    <div className="export-links" aria-label="Exported documents">
+      {documents.map((document) => {
+        const label = document.document_type === "cv" ? "CV" : "Cover letter";
+        return (
+          <div key={`${document.document_type}-${document.version}`}>
+            <a href={document.markdown_url} download>
+              {label} Markdown v{document.version}
+            </a>
+            <a href={document.pdf_url} download>
+              {label} PDF v{document.version}
+            </a>
+            <details className="pdf-preview">
+              <summary>Preview {label} PDF v{document.version}</summary>
+              <iframe
+                title={`${label} PDF preview v${document.version}`}
+                src={document.pdf_url}
+              />
+            </details>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

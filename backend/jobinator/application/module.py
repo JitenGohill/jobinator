@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
 
 from jobinator.application.facts import FactCatalog
 from jobinator.application.matching import match_profile
@@ -15,6 +19,7 @@ from jobinator.application.models import (
 from jobinator.application.provider import ApplicationGenerationInput
 from jobinator.application.risk import estimated_effort, review_known_risks
 from jobinator.application.runtime import ApplicationGenerationRuntime
+from jobinator.database import ApplicationPacketRow
 from jobinator.discovery.module import DiscoveryModule
 from jobinator.profile.models import CanonicalProfile
 from jobinator.profile.module import ProfileModule
@@ -39,17 +44,20 @@ class ApplicationPacketModule:
         profile_module: ProfileModule,
         discovery_module: DiscoveryModule,
         generation_runtime: ApplicationGenerationRuntime,
+        sessions: sessionmaker[Session],
     ) -> None:
         self._profile_module = profile_module
         self._discovery_module = discovery_module
         self._generation_runtime = generation_runtime
+        self._sessions = sessions
 
     async def generate_packet(
         self,
         opportunity_id: int,
         request: ApplicationPacketRequest,
     ) -> ApplicationPacket:
-        profile = self._profile_module.get_profile().profile
+        saved_profile = self._profile_module.get_profile()
+        profile = saved_profile.profile
         queue = self._discovery_module.build_daily_queue(
             minimum_score=60,
             include_maybe=False,
@@ -60,6 +68,36 @@ class ApplicationPacketModule:
         )
         if opportunity is None:
             raise QueuedOpportunityNotFoundError
+
+        snapshot_id = opportunity.snapshots[0].id
+        if snapshot_id is None:
+            raise ValueError("Application packets require a persisted job snapshot.")
+        request_payload = request.model_dump(mode="json")
+        generation_key = ":".join(
+            (
+                self._generation_runtime.provider.name,
+                self._generation_runtime.provider.model,
+                self._generation_runtime.prompt_version,
+            )
+        )
+        with self._sessions() as session:
+            existing_rows = session.scalars(
+                select(ApplicationPacketRow).where(
+                    ApplicationPacketRow.snapshot_id == snapshot_id,
+                    ApplicationPacketRow.profile_version == saved_profile.version,
+                    ApplicationPacketRow.generation_key == generation_key,
+                )
+            ).all()
+            existing = next(
+                (row for row in existing_rows if row.request_payload == request_payload),
+                None,
+            )
+            if existing is not None:
+                return ApplicationPacket(
+                    id=existing.id,
+                    profile_version=existing.profile_version,
+                    **existing.payload,
+                )
 
         catalog = FactCatalog.build(profile, opportunity)
         context, missing = match_profile(profile, opportunity, catalog)
@@ -93,7 +131,9 @@ class ApplicationPacketModule:
                 *(answer.draft for answer in drafts.screening_answers),
             )
         )
-        return ApplicationPacket(
+        packet = ApplicationPacket(
+            id=1,
+            profile_version=saved_profile.version,
             opportunity_id=opportunity_id,
             score=opportunity.score,
             job_snapshot=opportunity.snapshots[0],
@@ -119,6 +159,20 @@ class ApplicationPacketModule:
                 prompt_version=self._generation_runtime.prompt_version,
             ),
         )
+        with self._sessions.begin() as session:
+            row = ApplicationPacketRow(
+                opportunity_id=opportunity_id,
+                snapshot_id=snapshot_id,
+                profile_version=saved_profile.version,
+                request_payload=request_payload,
+                generation_key=generation_key,
+                payload=packet.model_dump(mode="json", exclude={"id", "profile_version"}),
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(row)
+            session.flush()
+            packet_id = row.id
+        return packet.model_copy(update={"id": packet_id})
 
 
 def _render_plan(

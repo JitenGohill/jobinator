@@ -5,7 +5,10 @@ import {afterEach, expect, test, vi} from "vitest";
 import {CandidateQueuePanel} from "./CandidateQueuePanel";
 import type {CandidateQueue} from "./types";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const queue: CandidateQueue = {
   target: {minimum: 25, maximum: 30},
@@ -98,4 +101,89 @@ test("daily queue explains scores, labels stretch work, and exposes expansion co
 
   await user.click(screen.getByRole("button", {name: "Include manual-review matches"}));
   expect(expand).toHaveBeenCalledWith({minimum_score: 60, include_maybe: true});
+});
+
+test("user previews a packet then exports its versioned Markdown and PDF documents", async () => {
+  const packet = {
+    id: 7,
+    profile_version: 3,
+    opportunity_id: 1,
+    job_snapshot: {id: 14},
+    tailored_cv_draft: "# Tailored CV\n\nReliable backend engineer.",
+    cover_letter: "Dear Alpha Systems hiring team,\n\nI build reliable systems.",
+    risk_flags: [],
+  };
+  const exported = {
+    packet_id: 7,
+    profile_version: 3,
+    job_snapshot_id: 14,
+    documents: [
+      {
+        document_type: "cv",
+        version: 1,
+        preview_markdown: packet.tailored_cv_draft,
+        markdown_url: "/api/application-packets/7/exports/cv/1/markdown",
+        pdf_url: "/api/application-packets/7/exports/cv/1/pdf",
+      },
+      {
+        document_type: "cover_letter",
+        version: 1,
+        preview_markdown: packet.cover_letter,
+        markdown_url: "/api/application-packets/7/exports/cover_letter/1/markdown",
+        pdf_url: "/api/application-packets/7/exports/cover_letter/1/pdf",
+      },
+    ],
+  };
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify(packet), {
+        status: 200,
+        headers: {"Content-Type": "application/json"},
+      }),
+    )
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify(exported), {
+        status: 201,
+        headers: {"Content-Type": "application/json"},
+      }),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  const user = userEvent.setup();
+
+  render(<CandidateQueuePanel queue={queue} loading={false} onExpand={vi.fn()} />);
+  await user.click(screen.getByRole("button", {name: "Prepare review packet"}));
+
+  expect(await screen.findByText("# Tailored CV")).toBeInTheDocument();
+  expect(screen.getByText("Dear Alpha Systems hiring team,")).toBeInTheDocument();
+  expect(screen.getByText("Profile v3 · Snapshot 14 · Packet 7")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", {name: "Export Markdown and PDF"}));
+
+  expect(await screen.findByRole("link", {name: "CV Markdown v1"})).toHaveAttribute(
+    "href",
+    exported.documents[0].markdown_url,
+  );
+  expect(screen.getByRole("link", {name: "CV PDF v1"})).toHaveAttribute(
+    "href",
+    exported.documents[0].pdf_url,
+  );
+  expect(screen.getByRole("link", {name: "Cover letter Markdown v1"})).toBeInTheDocument();
+  expect(screen.getByRole("link", {name: "Cover letter PDF v1"})).toBeInTheDocument();
+  expect(screen.getByTitle("CV PDF preview v1")).toHaveAttribute(
+    "src",
+    exported.documents[0].pdf_url,
+  );
+  expect(screen.getByTitle("Cover letter PDF preview v1")).toHaveAttribute(
+    "src",
+    exported.documents[1].pdf_url,
+  );
+  expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/application-packets/1", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({cover_letter_requested: false, screening_questions: []}),
+  });
+  expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/application-packets/7/exports", {
+    method: "POST",
+  });
 });

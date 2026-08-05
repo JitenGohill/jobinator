@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, create_engine
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, UniqueConstraint, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
@@ -19,6 +19,14 @@ class CanonicalProfileRow(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CanonicalProfileVersionRow(Base):
+    __tablename__ = "canonical_profile_version"
+
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -53,6 +61,37 @@ class DiscoveryLinkRow(Base):
         nullable=True,
     )
     reason: Mapped[str | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ApplicationPacketRow(Base):
+    __tablename__ = "application_packet"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    opportunity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot_id: Mapped[int] = mapped_column(ForeignKey("job_snapshot.id"), nullable=False)
+    profile_version: Mapped[int] = mapped_column(
+        ForeignKey("canonical_profile_version.version"),
+        nullable=False,
+    )
+    request_payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    generation_key: Mapped[str] = mapped_column(nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DocumentExportRow(Base):
+    __tablename__ = "document_export"
+    __table_args__ = (
+        UniqueConstraint("packet_id", "document_type", "version"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    packet_id: Mapped[int] = mapped_column(ForeignKey("application_packet.id"), nullable=False)
+    document_type: Mapped[str] = mapped_column(nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    markdown_path: Mapped[str] = mapped_column(nullable=False)
+    pdf_path: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

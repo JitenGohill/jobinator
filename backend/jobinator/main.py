@@ -8,8 +8,21 @@ from typing import Annotated, cast
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.responses import Response
+from sqlalchemy.orm import Session, sessionmaker
 
-from jobinator.application.models import ApplicationPacket, ApplicationPacketRequest
+from jobinator.application.exports import (
+    ApplicationPacketNotFoundError,
+    DocumentExportModule,
+    DocumentExportNotFoundError,
+)
+from jobinator.application.models import (
+    ApplicationPacket,
+    ApplicationPacketRequest,
+    DocumentType,
+    ExportBundle,
+    ExportFormat,
+)
 from jobinator.application.module import (
     ApplicationPacketModule,
     QueuedOpportunityNotFoundError,
@@ -22,7 +35,13 @@ from jobinator.application.runtime import (
     create_application_provider,
 )
 from jobinator.config import Settings
-from jobinator.database import Base, create_database_engine, create_session_factory
+from jobinator.database import (
+    Base,
+    CanonicalProfileRow,
+    CanonicalProfileVersionRow,
+    create_database_engine,
+    create_session_factory,
+)
 from jobinator.discovery.link_sources import DISCOVERY_LINK_SOURCES
 from jobinator.discovery.links import DiscoveryLinkIntake
 from jobinator.discovery.models import (
@@ -74,10 +93,21 @@ async def get_application_module(request: Request) -> ApplicationPacketModule:
             ApplicationGenerationRuntime,
             request.app.state.application_generation_runtime,
         ),
+        sessions=cast(sessionmaker[Session], request.app.state.sessions),
     )
 
 
 ApplicationDependency = Annotated[ApplicationPacketModule, Depends(get_application_module)]
+
+
+async def get_document_export_module(request: Request) -> DocumentExportModule:
+    return cast(DocumentExportModule, request.app.state.document_export_module)
+
+
+DocumentExportDependency = Annotated[
+    DocumentExportModule,
+    Depends(get_document_export_module),
+]
 
 
 def create_app(
@@ -86,11 +116,25 @@ def create_app(
     source_client: httpx.AsyncClient | None = None,
     clock: Callable[[], datetime] | None = None,
     application_provider: ApplicationContentProvider | None = None,
+    export_directory: Path | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     engine = create_database_engine(database_url or resolved_settings.database_url)
     Base.metadata.create_all(engine)
     sessions = create_session_factory(engine)
+    with sessions.begin() as session:
+        current_profile = session.get(CanonicalProfileRow, 1)
+        if (
+            current_profile is not None
+            and session.get(CanonicalProfileVersionRow, current_profile.version) is None
+        ):
+            session.add(
+                CanonicalProfileVersionRow(
+                    version=current_profile.version,
+                    payload=current_profile.payload,
+                    updated_at=current_profile.updated_at,
+                )
+            )
     profile_module = ProfileModule(sessions)
     owns_source_client = source_client is None
     resolved_source_client = source_client or httpx.AsyncClient(timeout=20)
@@ -124,6 +168,7 @@ def create_app(
 
     app = FastAPI(title="Jobinator", version="0.1.0", lifespan=lifespan)
     app.state.database_engine = engine
+    app.state.sessions = sessions
     app.state.profile_module = profile_module
     app.state.discovery_module = discovery_module
     app.state.discovery_link_intake = discovery_link_intake
@@ -136,6 +181,10 @@ def create_app(
         prompt_version=prompt_version,
     )
     app.state.settings = resolved_settings
+    app.state.document_export_module = DocumentExportModule(
+        sessions,
+        export_directory or resolved_settings.export_directory,
+    )
 
     @app.get("/api/profile", response_model=SavedProfile)
     async def get_profile(module: ProfileDependency) -> SavedProfile:
@@ -207,6 +256,70 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The opportunity is not in the current candidate queue.",
             ) from error
+
+    @app.post(
+        "/api/application-packets/{packet_id}/exports",
+        response_model=ExportBundle,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def export_application_packet(
+        packet_id: int,
+        module: DocumentExportDependency,
+    ) -> ExportBundle:
+        try:
+            return module.export_packet(packet_id)
+        except ApplicationPacketNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The application packet does not exist.",
+            ) from error
+
+    @app.get(
+        "/api/application-packets/{packet_id}/profile",
+        response_model=SavedProfile,
+    )
+    async def get_application_packet_profile(
+        packet_id: int,
+        module: DocumentExportDependency,
+    ) -> SavedProfile:
+        try:
+            return module.packet_profile(packet_id)
+        except ApplicationPacketNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The application packet does not exist.",
+            ) from error
+
+    @app.get(
+        "/api/application-packets/{packet_id}/exports/"
+        "{document_type}/{version}/{export_format}",
+        response_class=Response,
+    )
+    async def download_application_document(
+        packet_id: int,
+        document_type: DocumentType,
+        version: int,
+        export_format: ExportFormat,
+        module: DocumentExportDependency,
+    ) -> Response:
+        try:
+            path = module.exported_file(
+                packet_id,
+                document_type,
+                version,
+                export_format,
+            )
+        except DocumentExportNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The requested document export does not exist.",
+            ) from error
+        media_type = "text/markdown" if export_format == "markdown" else "application/pdf"
+        return Response(
+            content=path.read_bytes(),
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{path.name}"'},
+        )
 
     @app.get("/api/discovery/links", response_model=list[DiscoveryLink])
     async def list_discovery_links(

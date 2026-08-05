@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     application_provider: Literal["fake", "openai"] = "fake"
     application_model: str = "gpt-5.6-luna"
+    export_directory: Path = Path("exports")
     greenhouse_board_token: str | None = None
     greenhouse_company: str | None = None
     lever_site: str | None = None
