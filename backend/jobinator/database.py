@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Integer, create_engine
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
@@ -38,6 +38,22 @@ class JobSnapshotRow(Base):
     ats_posting_id: Mapped[str | None] = mapped_column(nullable=True)
     canonical_url: Mapped[str] = mapped_column(nullable=False)
     raw_posting: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class DiscoveryLinkRow(Base):
+    __tablename__ = "discovery_link"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    url: Mapped[str] = mapped_column(nullable=False)
+    source_platform: Mapped[str] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(nullable=False)
+    resolved_url: Mapped[str | None] = mapped_column(nullable=True)
+    snapshot_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job_snapshot.id"),
+        nullable=True,
+    )
+    reason: Mapped[str | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 def create_database_engine(database_url: str) -> Engine:

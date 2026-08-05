@@ -85,6 +85,16 @@ Direct company career pages are supported when the fetched HTML contains a
 schema.org `JobPosting` JSON-LD record. Direct Workday `/job/` URLs use Workday's
 public JSON endpoint. Blocked, missing, or unrecognized pages produce source
 diagnostics; Jobinator does not attempt browser automation.
+
+The dashboard also accepts one or many discovery links from LinkedIn, Wellfound,
+YC Work at a Startup, Built In, Welcome to the Jungle/Otta, Simplify, and
+engineering-specific lists. It identifies the known source from each URL and lets
+you confirm or change it before intake. Reachable schema.org details or official
+company/Workday links become normalized snapshots in the same screening and
+deduplication workflow. Blocked, expired, or otherwise unresolved links remain in
+the dashboard with their provenance, an explanation, and a manual-review link.
+LinkedIn links are preserved without automated browsing or authentication.
+
 Use **Ingest configured sources** in the dashboard, or run the same source-adapter
 entry point independently:
 

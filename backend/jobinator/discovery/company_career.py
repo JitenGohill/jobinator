@@ -57,13 +57,13 @@ class CompanyCareerAdapter:
             posting_label="Company career posting",
         )
 
-        posting = _find_job_posting(response.text)
+        posting = find_job_posting(response.text)
         if posting is None:
             raise SourceNormalizationError(
                 "Company career page structure is unsupported; expected schema.org "
                 "JobPosting data. Browser automation was not attempted."
             )
-        return [_normalize(posting, source, fetched_at)]
+        return [normalize_job_posting(posting, source, fetched_at)]
 
 
 def _validated_https_url(value: str, label: str) -> str:
@@ -73,7 +73,7 @@ def _validated_https_url(value: str, label: str) -> str:
     return value
 
 
-def _find_job_posting(content: str) -> dict[str, Any] | None:
+def find_job_posting(content: str) -> dict[str, Any] | None:
     parser = _JsonLdParser()
     parser.feed(content)
     for document in parser.documents:
@@ -105,7 +105,7 @@ def _json_ld_items(payload: Any) -> list[dict[str, Any]]:
     return items
 
 
-def _normalize(
+def normalize_job_posting(
     posting: dict[str, Any],
     source: SourceConfiguration,
     fetched_at: datetime,

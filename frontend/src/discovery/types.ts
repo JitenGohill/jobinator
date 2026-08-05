@@ -40,6 +40,33 @@ export interface IngestionResult {
   sources: SourceIngestionDiagnostic[];
 }
 
+export interface DiscoveryLinkSubmission {
+  url: string;
+  source_platform: string;
+}
+
+export interface DiscoveryLink {
+  id: number;
+  url: string;
+  source_platform: string;
+  status: "resolved" | "unresolved";
+  resolved_url: string | null;
+  snapshot_id: number | null;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface DiscoveryLinkIntakeResult {
+  discovered: number;
+  links: DiscoveryLink[];
+}
+
+export interface DiscoveryLinkSource {
+  id: string;
+  label: string;
+  domains: string[];
+}
+
 export interface ScoreDimension {
   value: number;
   explanation: string;

@@ -1,0 +1,11 @@
+{
+  "links": [
+    {"url": "https://www.linkedin.com/jobs/view/987654321", "expected_platform": "linkedin"},
+    {"url": "https://wellfound.com/jobs/12345-junior-software-engineer", "expected_platform": "wellfound"},
+    {"url": "https://www.workatastartup.com/jobs/67890", "expected_platform": "yc-work-at-a-startup"},
+    {"url": "https://builtin.com/job/software-engineering/junior-engineer/111", "expected_platform": "builtin"},
+    {"url": "https://www.welcometothejungle.com/en/companies/acme/jobs/junior-engineer", "expected_platform": "welcome-to-the-jungle"},
+    {"url": "https://simplify.jobs/p/abcd1234/Junior-Software-Engineer", "expected_platform": "simplify"},
+    {"url": "https://www.python.org/jobs/7654/", "source_platform": "engineering-list", "expected_platform": "engineering-list"}
+  ]
+}

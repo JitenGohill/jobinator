@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, cast
 
 import httpx
@@ -10,7 +10,17 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 
 from jobinator.config import Settings
 from jobinator.database import Base, create_database_engine, create_session_factory
-from jobinator.discovery.models import CandidateQueue, IngestionResult, ScreenedOpportunity
+from jobinator.discovery.link_sources import DISCOVERY_LINK_SOURCES
+from jobinator.discovery.links import DiscoveryLinkIntake
+from jobinator.discovery.models import (
+    CandidateQueue,
+    DiscoveryLink,
+    DiscoveryLinkIntakeRequest,
+    DiscoveryLinkIntakeResult,
+    DiscoveryLinkSource,
+    IngestionResult,
+    ScreenedOpportunity,
+)
 from jobinator.discovery.module import DiscoveryModule, SourceNotConfiguredError
 from jobinator.discovery.queue import CanonicalProfileRequiredError
 from jobinator.discovery.runtime import create_discovery_module
@@ -36,6 +46,13 @@ async def get_discovery_module(request: Request) -> DiscoveryModule:
 DiscoveryDependency = Annotated[DiscoveryModule, Depends(get_discovery_module)]
 
 
+async def get_discovery_link_intake(request: Request) -> DiscoveryLinkIntake:
+    return cast(DiscoveryLinkIntake, request.app.state.discovery_link_intake)
+
+
+DiscoveryLinkDependency = Annotated[DiscoveryLinkIntake, Depends(get_discovery_link_intake)]
+
+
 def create_app(
     database_url: str | None = None,
     settings: Settings | None = None,
@@ -55,6 +72,11 @@ def create_app(
         source_client=resolved_source_client,
         clock=clock,
     )
+    discovery_link_intake = DiscoveryLinkIntake(
+        sessions=sessions,
+        client=resolved_source_client,
+        clock=clock or (lambda: datetime.now(timezone.utc)),
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -69,6 +91,7 @@ def create_app(
     app.state.database_engine = engine
     app.state.profile_module = profile_module
     app.state.discovery_module = discovery_module
+    app.state.discovery_link_intake = discovery_link_intake
     app.state.settings = resolved_settings
 
     @app.get("/api/profile", response_model=SavedProfile)
@@ -124,6 +147,30 @@ def create_app(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Save the canonical profile before generating a candidate queue.",
             ) from error
+
+    @app.get("/api/discovery/links", response_model=list[DiscoveryLink])
+    async def list_discovery_links(
+        intake: DiscoveryLinkDependency,
+    ) -> list[DiscoveryLink]:
+        return intake.list()
+
+    @app.get("/api/discovery/link-sources", response_model=list[DiscoveryLinkSource])
+    async def list_discovery_link_sources() -> list[DiscoveryLinkSource]:
+        return [
+            DiscoveryLinkSource(
+                id=source.id,
+                label=source.label,
+                domains=list(source.domains),
+            )
+            for source in DISCOVERY_LINK_SOURCES
+        ]
+
+    @app.post("/api/discovery/links", response_model=DiscoveryLinkIntakeResult)
+    async def add_discovery_links(
+        request: DiscoveryLinkIntakeRequest,
+        intake: DiscoveryLinkDependency,
+    ) -> DiscoveryLinkIntakeResult:
+        return await intake.add(request)
     return app
 
 

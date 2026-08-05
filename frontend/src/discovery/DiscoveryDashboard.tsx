@@ -1,14 +1,21 @@
 import {useEffect, useState} from "react";
 
 import {CandidateQueuePanel} from "./CandidateQueuePanel";
+import {DiscoveryLinkIntake} from "./DiscoveryLinkIntake";
 import {DiscoveryLane} from "./DiscoveryLane";
 import {
+  addDiscoveryLinks,
   ingestConfiguredSources,
   loadCandidateQueue,
   loadDiscoveredJobs,
+  loadDiscoveryLinkSources,
+  loadDiscoveryLinks,
 } from "./discoveryClient";
 import type {
   CandidateQueue,
+  DiscoveryLink,
+  DiscoveryLinkSource,
+  DiscoveryLinkSubmission,
   DiscoveredJob,
   IngestionResult,
   QueueCriteria,
@@ -33,6 +40,11 @@ export function DiscoveryDashboard({profileVersion}: DiscoveryDashboardProps) {
     useState<QueueCriteria>(defaultQueueCriteria);
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
+  const [discoveryLinks, setDiscoveryLinks] = useState<DiscoveryLink[]>([]);
+  const [discoveryLinkSources, setDiscoveryLinkSources] = useState<
+    DiscoveryLinkSource[]
+  >([]);
+  const [submittingLinks, setSubmittingLinks] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -59,6 +71,32 @@ export function DiscoveryDashboard({profileVersion}: DiscoveryDashboardProps) {
           setQueue(null);
           setQueueMessage(
             reason instanceof Error ? reason.message : "Could not generate the candidate queue.",
+          );
+        }
+      });
+    void loadDiscoveryLinks()
+      .then((links) => {
+        if (active) {
+          setDiscoveryLinks(links);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setError(reason instanceof Error ? reason.message : "Could not load discovery links.");
+        }
+      });
+    void loadDiscoveryLinkSources()
+      .then((sources) => {
+        if (active) {
+          setDiscoveryLinkSources(sources);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Could not load discovery-link sources.",
           );
         }
       });
@@ -98,6 +136,23 @@ export function DiscoveryDashboard({profileVersion}: DiscoveryDashboardProps) {
     }
   };
 
+  const submitDiscoveryLinks = async (links: DiscoveryLinkSubmission[]) => {
+    setSubmittingLinks(true);
+    setError(null);
+    try {
+      const result = await addDiscoveryLinks(links);
+      setDiscoveryLinks((current) => [...result.links, ...current]);
+      setJobs(await loadDiscoveredJobs());
+      await refreshQueue(queueCriteria);
+      return true;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not add discovery links.");
+      return false;
+    } finally {
+      setSubmittingLinks(false);
+    }
+  };
+
   return (
     <>
       {error && (
@@ -123,6 +178,12 @@ export function DiscoveryDashboard({profileVersion}: DiscoveryDashboardProps) {
           </ul>
         </section>
       )}
+      <DiscoveryLinkIntake
+        links={discoveryLinks}
+        sourceOptions={discoveryLinkSources}
+        submitting={submittingLinks}
+        onSubmit={submitDiscoveryLinks}
+      />
       {queueMessage && (
         <section className="queue-unavailable" aria-label="Candidate queue unavailable">
           <h2>Daily candidate queue</h2>

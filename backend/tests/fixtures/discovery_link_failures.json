@@ -1,0 +1,12 @@
+{
+  "blocked": {
+    "url": "https://builtin.com/job/software-engineering/junior-engineer/blocked",
+    "status_code": 403,
+    "expected_reason": "Builtin blocked access (HTTP 403). Browser automation was not attempted. Open the source link for manual review."
+  },
+  "expired": {
+    "url": "https://simplify.jobs/p/expired/Junior-Software-Engineer",
+    "status_code": 410,
+    "expected_reason": "Simplify listing was not found (HTTP 410). Open the source link for manual review."
+  }
+}

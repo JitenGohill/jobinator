@@ -1,5 +1,9 @@
 import type {
   CandidateQueue,
+  DiscoveryLink,
+  DiscoveryLinkIntakeResult,
+  DiscoveryLinkSource,
+  DiscoveryLinkSubmission,
   DiscoveredJob,
   IngestionResult,
   QueueCriteria,
@@ -8,6 +12,8 @@ import type {
 const discoveryPath = "/api/discovery/jobs";
 const ingestionPath = "/api/discovery/ingest";
 const queuePath = "/api/discovery/queue";
+const discoveryLinksPath = "/api/discovery/links";
+const discoveryLinkSourcesPath = "/api/discovery/link-sources";
 
 async function errorMessage(response: Response): Promise<string> {
   try {
@@ -50,6 +56,36 @@ export async function ingestConfiguredSources(): Promise<IngestionResult> {
     throw new Error(await errorMessage(response));
   }
   return (await response.json()) as IngestionResult;
+}
+
+export async function loadDiscoveryLinks(): Promise<DiscoveryLink[]> {
+  const response = await fetch(discoveryLinksPath);
+  if (!response.ok) {
+    throw new Error(await errorMessage(response));
+  }
+  return (await response.json()) as DiscoveryLink[];
+}
+
+export async function loadDiscoveryLinkSources(): Promise<DiscoveryLinkSource[]> {
+  const response = await fetch(discoveryLinkSourcesPath);
+  if (!response.ok) {
+    throw new Error(await errorMessage(response));
+  }
+  return (await response.json()) as DiscoveryLinkSource[];
+}
+
+export async function addDiscoveryLinks(
+  links: DiscoveryLinkSubmission[],
+): Promise<DiscoveryLinkIntakeResult> {
+  const response = await fetch(discoveryLinksPath, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({links}),
+  });
+  if (!response.ok) {
+    throw new Error(await errorMessage(response));
+  }
+  return (await response.json()) as DiscoveryLinkIntakeResult;
 }
 
 export async function loadCandidateQueue(

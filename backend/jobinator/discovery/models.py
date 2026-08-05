@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from jobinator.discovery.link_sources import DISCOVERY_LINK_SOURCE_IDS
 
 ScreeningLane = Literal["eligible", "stretch", "maybe", "rejected"]
 SourcePlatform = Annotated[str, Field(min_length=1)]
@@ -114,3 +117,50 @@ class SourceIngestionDiagnostic(DiscoveryModel):
 class IngestionResult(DiscoveryModel):
     discovered: int = Field(ge=0)
     sources: list[SourceIngestionDiagnostic]
+
+
+class DiscoveryLinkSubmission(DiscoveryModel):
+    url: str = Field(min_length=1)
+    source_platform: SourcePlatform | None = None
+
+    @field_validator("url")
+    @classmethod
+    def require_public_https_url(cls, value: str) -> str:
+        normalized = value.strip()
+        parts = urlsplit(normalized)
+        if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
+            raise ValueError("Discovery link must be a public HTTPS URL.")
+        return normalized
+
+    @field_validator("source_platform")
+    @classmethod
+    def require_supported_source(cls, value: str | None) -> str | None:
+        if value is not None and value not in DISCOVERY_LINK_SOURCE_IDS:
+            raise ValueError("Discovery-link source is not supported.")
+        return value
+
+
+class DiscoveryLinkIntakeRequest(DiscoveryModel):
+    links: list[DiscoveryLinkSubmission] = Field(min_length=1)
+
+
+class DiscoveryLink(DiscoveryModel):
+    id: int = Field(ge=1)
+    url: str
+    source_platform: SourcePlatform
+    status: Literal["resolved", "unresolved"]
+    resolved_url: str | None
+    snapshot_id: int | None
+    reason: str | None
+    created_at: datetime
+
+
+class DiscoveryLinkIntakeResult(DiscoveryModel):
+    discovered: int = Field(ge=0)
+    links: list[DiscoveryLink]
+
+
+class DiscoveryLinkSource(DiscoveryModel):
+    id: str
+    label: str
+    domains: list[str]

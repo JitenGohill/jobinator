@@ -19,6 +19,7 @@ from jobinator.discovery.models import (
     SourceIngestionDiagnostic,
 )
 from jobinator.discovery.opportunities import build_opportunities
+from jobinator.discovery.persistence import snapshot_row
 from jobinator.discovery.queue import CanonicalProfileRequiredError, build_candidate_queue
 from jobinator.discovery.screening import ScreeningPolicy
 from jobinator.profile.models import CanonicalProfile
@@ -99,21 +100,7 @@ class DiscoveryModule:
 
         with self._sessions.begin() as session:
             for snapshot in snapshots:
-                session.add(
-                    JobSnapshotRow(
-                        source_url=snapshot.source_url,
-                        fetched_at=snapshot.fetched_at,
-                        company=snapshot.company,
-                        title=snapshot.title,
-                        location=snapshot.location,
-                        description_text=snapshot.description_text,
-                        detected_requirements=snapshot.detected_requirements,
-                        source_platform=snapshot.source_platform,
-                        ats_posting_id=snapshot.ats_posting_id,
-                        canonical_url=snapshot.canonical_url,
-                        raw_posting=snapshot.raw_posting,
-                    )
-                )
+                session.add(snapshot_row(snapshot))
         return IngestionResult(discovered=len(snapshots), sources=diagnostics)
 
     def list_discovered(self) -> list[ScreenedOpportunity]:
