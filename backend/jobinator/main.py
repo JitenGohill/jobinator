@@ -3,11 +3,24 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated, cast
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 
+from jobinator.application.models import ApplicationPacket, ApplicationPacketRequest
+from jobinator.application.module import (
+    ApplicationPacketModule,
+    QueuedOpportunityNotFoundError,
+)
+from jobinator.application.provider import (
+    ApplicationContentProvider,
+)
+from jobinator.application.runtime import (
+    ApplicationGenerationRuntime,
+    create_application_provider,
+)
 from jobinator.config import Settings
 from jobinator.database import Base, create_database_engine, create_session_factory
 from jobinator.discovery.link_sources import DISCOVERY_LINK_SOURCES
@@ -53,11 +66,26 @@ async def get_discovery_link_intake(request: Request) -> DiscoveryLinkIntake:
 DiscoveryLinkDependency = Annotated[DiscoveryLinkIntake, Depends(get_discovery_link_intake)]
 
 
+async def get_application_module(request: Request) -> ApplicationPacketModule:
+    return ApplicationPacketModule(
+        profile_module=cast(ProfileModule, request.app.state.profile_module),
+        discovery_module=cast(DiscoveryModule, request.app.state.discovery_module),
+        generation_runtime=cast(
+            ApplicationGenerationRuntime,
+            request.app.state.application_generation_runtime,
+        ),
+    )
+
+
+ApplicationDependency = Annotated[ApplicationPacketModule, Depends(get_application_module)]
+
+
 def create_app(
     database_url: str | None = None,
     settings: Settings | None = None,
     source_client: httpx.AsyncClient | None = None,
     clock: Callable[[], datetime] | None = None,
+    application_provider: ApplicationContentProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     engine = create_database_engine(database_url or resolved_settings.database_url)
@@ -77,6 +105,13 @@ def create_app(
         client=resolved_source_client,
         clock=clock or (lambda: datetime.now(timezone.utc)),
     )
+    prompt_version = "application-packet-v1"
+    prompt = (
+        Path(__file__).parent
+        / "application"
+        / "prompts"
+        / f"{prompt_version}.txt"
+    ).read_text()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -92,6 +127,14 @@ def create_app(
     app.state.profile_module = profile_module
     app.state.discovery_module = discovery_module
     app.state.discovery_link_intake = discovery_link_intake
+    app.state.application_generation_runtime = ApplicationGenerationRuntime(
+        provider=(
+            application_provider
+            or create_application_provider(resolved_settings, resolved_source_client)
+        ),
+        prompt=prompt,
+        prompt_version=prompt_version,
+    )
     app.state.settings = resolved_settings
 
     @app.get("/api/profile", response_model=SavedProfile)
@@ -146,6 +189,23 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Save the canonical profile before generating a candidate queue.",
+            ) from error
+
+    @app.post(
+        "/api/application-packets/{opportunity_id}",
+        response_model=ApplicationPacket,
+    )
+    async def generate_application_packet(
+        opportunity_id: int,
+        packet_request: ApplicationPacketRequest,
+        module: ApplicationDependency,
+    ) -> ApplicationPacket:
+        try:
+            return await module.generate_packet(opportunity_id, packet_request)
+        except QueuedOpportunityNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The opportunity is not in the current candidate queue.",
             ) from error
 
     @app.get("/api/discovery/links", response_model=list[DiscoveryLink])

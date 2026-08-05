@@ -117,6 +117,33 @@ available market falls short, the dashboard keeps the current thresholds visible
 and offers explicit controls to include manual-review matches or lower the total
 score threshold; hard eligibility rules are never lowered.
 
+## Generate application packets
+
+Generate a reviewable packet for an opportunity in the default candidate queue:
+
+```bash
+curl -X POST http://localhost:8000/api/application-packets/1 \
+  -H 'Content-Type: application/json' \
+  -d '{"cover_letter_requested": false, "screening_questions": []}'
+```
+
+The packet includes the immutable job snapshot, score and explanations, direct apply
+link, estimated effort, matched profile evidence, missing requirements, a tailored CV
+draft, and risk flags. Cover letters are omitted unless requested or the posting asks
+for one. Screening answers are always marked as requiring human review.
+
+Packet generation defaults to the deterministic fake provider, so development and
+tests make no live AI calls. To use OpenAI, configure the provider, model, and API key:
+
+```dotenv
+JOBINATOR_APPLICATION_PROVIDER=openai
+JOBINATOR_APPLICATION_MODEL=gpt-5.6-luna
+JOBINATOR_OPENAI_API_KEY=your-key
+```
+
+Prompts are versioned under `backend/jobinator/application/prompts`; every packet
+reports the provider, model, and prompt version used to create it.
+
 Saved updates use profile versions so an older browser tab cannot silently overwrite
 newer profile data.
 
