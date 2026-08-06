@@ -1237,6 +1237,52 @@ textarea:focus {
   text-align: center;
 }
 
+.analytics {
+  margin-bottom: 40px;
+  padding: 28px;
+  border: 1px solid #dedbd2;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.analytics-summary,
+.analytics-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.analytics-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 20px 0;
+  padding: 18px;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.analytics-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.analytics-metric {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.analytics-metric h2 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.analytics-metric ul {
+  margin-bottom: 0;
+  padding-left: 20px;
+}
+
+.analytics-definitions {
+  margin-top: 20px;
+}
+
 @media (max-width: 700px) {
   main {
     padding-top: 36px;
@@ -1285,6 +1331,11 @@ textarea:focus {
   .save-bar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .analytics-summary,
+  .analytics-grid {
+    grid-template-columns: 1fr;
   }
 
   .save-button {

@@ -40,6 +40,13 @@ export interface WorkflowItem {
   disposition: "rejected" | "skipped" | null;
   skip_reason: string | null;
   outcome: string | null;
+  source_platform: string;
+  original_score: OpportunityScore | null;
+  packet_id: number | null;
+  applied_at: string | null;
+  company_type: CompanyType | null;
+  document_versions: SubmittedDocumentVersion[];
+  outcomes: OutcomeEvent[];
   opportunity: {
     company: string;
     title: string;
@@ -64,6 +71,63 @@ export interface WorkflowTransitionRequest {
   skip_reason?: string;
   submitted_externally?: boolean;
   outcome?: string;
+  outcome_type?: OutcomeType;
+  occurred_at?: string;
+  company_type?: CompanyType;
+  document_versions?: SubmittedDocumentVersion[];
+}
+
+export type OutcomeType = "response" | "recruiter_screen" | "interview" | "rejection" | "offer";
+export type CompanyType =
+  | "product"
+  | "startup"
+  | "enterprise"
+  | "agency"
+  | "consultancy"
+  | "nonprofit"
+  | "government"
+  | "other";
+
+export interface SubmittedDocumentVersion {
+  document_type: DocumentType;
+  version: number;
+}
+
+export interface OutcomeEvent {
+  outcome_type: OutcomeType;
+  note: string;
+  occurred_at: string;
+}
+
+export interface AnalyticsRate {
+  numerator: number;
+  denominator: number;
+  rate: number | null;
+}
+
+export interface AnalyticsGroupRate {
+  group: string;
+  applications: number;
+  responses: number;
+  response_rate: number;
+}
+
+export interface ApplicationAnalytics {
+  packets_prepared: number;
+  applications_submitted: number;
+  applications_per_day: {date: string; count: number}[];
+  review_rejection_rate: AnalyticsRate;
+  source_quality: AnalyticsGroupRate[];
+  score_distribution: {label: string; minimum: number; maximum: number; count: number}[];
+  response_rate_by_role: AnalyticsGroupRate[];
+  response_rate_by_source: AnalyticsGroupRate[];
+  response_rate_by_company_type: AnalyticsGroupRate[];
+  common_reject_reasons: {reason: string; count: number}[];
+  definitions: {
+    review_rejection_rate: string;
+    source_quality: string;
+    response_rate: string;
+  };
 }
 
 export type DocumentType = "cv" | "cover_letter";

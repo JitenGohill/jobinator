@@ -207,3 +207,55 @@ test("dashboard reports a rejected transition without moving the card", async ()
   );
   expect(screen.getByRole("heading", {name: "Junior Backend Engineer"})).toBeInTheDocument();
 });
+
+test("user records a dated typed outcome while immutable application context stays visible", async () => {
+  const appliedItem = {
+    ...packetReadyItem,
+    stage: "applied",
+    source_platform: "company",
+    original_score: packetReadyItem.packet.score,
+    packet_id: 7,
+    applied_at: "2026-08-01T10:00:00Z",
+    company_type: "product",
+    document_versions: [{document_type: "cv", version: 2}],
+    outcomes: [],
+  };
+  const outcomeItem = {
+    ...appliedItem,
+    stage: "outcome",
+    outcome: "Technical interview scheduled.",
+    outcomes: [{
+      outcome_type: "interview",
+      note: "Technical interview scheduled.",
+      occurred_at: "2026-08-04T15:00:00Z",
+    }],
+  };
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({items: [appliedItem]}), {status: 200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify(outcomeItem), {status: 200}));
+  vi.stubGlobal("fetch", fetchMock);
+  const user = userEvent.setup();
+
+  render(<ApplicationWorkflowBoard refreshKey={1} />);
+
+  expect(await screen.findByText("Original score: 91 / 100")).toBeInTheDocument();
+  expect(screen.getByText("Source: company")).toBeInTheDocument();
+  expect(screen.getByText("Submitted CV v2")).toBeInTheDocument();
+  await user.selectOptions(screen.getByRole("combobox", {name: "Outcome type"}), "interview");
+  await user.type(screen.getByRole("textbox", {name: "Outcome details"}), "Technical interview scheduled.");
+  await user.type(screen.getByLabelText("Outcome date"), "2026-08-04T15:00");
+  await user.click(screen.getByRole("button", {name: "Record outcome"}));
+
+  expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/application-workflow/1/transitions", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      target_stage: "outcome",
+      outcome_type: "interview",
+      outcome: "Technical interview scheduled.",
+      occurred_at: "2026-08-04T15:00:00.000Z",
+    }),
+  });
+  expect(await screen.findByText("interview — Technical interview scheduled.")).toBeInTheDocument();
+});

@@ -12,7 +12,9 @@ from jobinator.database import (
     ApplicationPacketRow,
     ApplicationWorkflowRow,
     ApplicationWorkflowTransitionRow,
+    DocumentExportRow,
 )
+from jobinator.discovery.models import OpportunityScore
 from jobinator.discovery.module import DiscoveryModule
 from jobinator.discovery.queue import CanonicalProfileRequiredError
 
@@ -27,6 +29,17 @@ WorkflowStage = Literal[
     "outcome",
 ]
 WorkflowDisposition = Literal["rejected", "skipped"]
+OutcomeType = Literal["response", "recruiter_screen", "interview", "rejection", "offer"]
+CompanyType = Literal[
+    "product",
+    "startup",
+    "enterprise",
+    "agency",
+    "consultancy",
+    "nonprofit",
+    "government",
+    "other",
+]
 
 
 class WorkflowModel(BaseModel):
@@ -47,12 +60,30 @@ class WorkflowOpportunity(WorkflowModel):
     direct_apply_link: str
 
 
+class SubmittedDocumentVersion(WorkflowModel):
+    document_type: Literal["cv", "cover_letter"]
+    version: int = Field(ge=1)
+
+
+class OutcomeEvent(WorkflowModel):
+    outcome_type: OutcomeType
+    note: str
+    occurred_at: datetime
+
+
 class WorkflowItem(WorkflowModel):
     opportunity_id: int
     stage: WorkflowStage
     disposition: WorkflowDisposition | None
     skip_reason: str | None
     outcome: str | None
+    source_platform: str
+    original_score: OpportunityScore | None
+    packet_id: int | None
+    applied_at: datetime | None
+    company_type: CompanyType | None
+    document_versions: list[SubmittedDocumentVersion]
+    outcomes: list[OutcomeEvent]
     opportunity: WorkflowOpportunity
     packet: ApplicationPacket | None
     history: list[WorkflowTransition]
@@ -67,6 +98,10 @@ class WorkflowTransitionRequest(WorkflowModel):
     skip_reason: str | None = Field(default=None, min_length=1)
     submitted_externally: bool = False
     outcome: str | None = Field(default=None, min_length=1)
+    outcome_type: OutcomeType | None = None
+    occurred_at: datetime | None = None
+    company_type: CompanyType | None = None
+    document_versions: list[SubmittedDocumentVersion] = Field(default_factory=list)
 
 
 class WorkflowItemNotFoundError(Exception):
@@ -85,6 +120,10 @@ class WorkflowDetailRequiredError(Exception):
     pass
 
 
+class SubmittedDocumentVersionNotFoundError(Exception):
+    pass
+
+
 _ALLOWED_TRANSITIONS: dict[WorkflowStage, set[WorkflowStage]] = {
     "discovered": {"shortlisted", "rejected_skipped"},
     "shortlisted": {"rejected_skipped"},
@@ -93,7 +132,7 @@ _ALLOWED_TRANSITIONS: dict[WorkflowStage, set[WorkflowStage]] = {
     "applied": {"follow_up", "outcome"},
     "follow_up": {"outcome"},
     "rejected_skipped": set(),
-    "outcome": set(),
+    "outcome": {"outcome"},
 }
 
 
@@ -124,6 +163,10 @@ class ApplicationWorkflowModule:
             if row is None:
                 raise WorkflowItemNotFoundError
             row.packet_id = packet.id
+            details = dict(row.opportunity_payload)
+            if details.get("original_score") is None:
+                details["original_score"] = packet.score.model_dump(mode="json")
+            row.opportunity_payload = details
             if row.stage == "shortlisted":
                 self._move(session, row, "packet_ready", "Review packet prepared.")
 
@@ -147,9 +190,23 @@ class ApplicationWorkflowModule:
             if request.target_stage == "outcome" and not request.outcome:
                 raise WorkflowDetailRequiredError
 
+            occurred_at = request.occurred_at or datetime.now(timezone.utc)
+            details = dict(row.opportunity_payload)
+
             note = None
             if request.target_stage == "applied":
+                self._validate_document_versions(session, row, request.document_versions)
                 note = "Submitted externally by the user."
+                details.update(
+                    {
+                        "applied_at": occurred_at.isoformat(),
+                        "company_type": request.company_type,
+                        "document_versions": [
+                            version.model_dump(mode="json")
+                            for version in request.document_versions
+                        ],
+                    }
+                )
             elif request.target_stage == "rejected_skipped":
                 row.disposition = "skipped"
                 row.skip_reason = request.skip_reason
@@ -157,22 +214,36 @@ class ApplicationWorkflowModule:
             elif request.target_stage == "outcome":
                 row.outcome = request.outcome
                 note = request.outcome
-            self._move(session, row, request.target_stage, note)
+                if request.outcome_type is not None:
+                    outcomes = list(details.get("outcomes", []))
+                    outcomes.append(
+                        {
+                            "outcome_type": request.outcome_type,
+                            "note": request.outcome,
+                            "occurred_at": occurred_at.isoformat(),
+                        }
+                    )
+                    details["outcomes"] = outcomes
+            row.opportunity_payload = details
+            self._move(session, row, request.target_stage, note, occurred_at)
             session.flush()
             return self._item(session, row)
 
     def _seed_discovered_opportunities(self) -> None:
         opportunities = self._discovery_module.list_discovered()
         try:
-            shortlisted_ids = {
-                candidate.id
-                for candidate in self._discovery_module.build_daily_queue(
-                    minimum_score=60,
-                    include_maybe=False,
-                ).candidates
+            queue = self._discovery_module.build_daily_queue(
+                minimum_score=60,
+                include_maybe=False,
+            )
+            shortlisted_ids = {candidate.id for candidate in queue.candidates}
+            scores = {
+                candidate.id: candidate.score.model_dump(mode="json")
+                for candidate in [*queue.candidates, *queue.not_queued]
             }
         except CanonicalProfileRequiredError:
             shortlisted_ids = set()
+            scores = {}
         now = datetime.now(timezone.utc)
         with self._sessions.begin() as session:
             for opportunity in opportunities:
@@ -204,6 +275,12 @@ class ApplicationWorkflowModule:
                         "title": opportunity.title,
                         "location": opportunity.location,
                         "direct_apply_link": opportunity.preferred_apply_url,
+                        "source_platform": opportunity.source_platform,
+                        "original_score": scores.get(opportunity.id),
+                        "applied_at": None,
+                        "company_type": None,
+                        "document_versions": [],
+                        "outcomes": [],
                     },
                     updated_at=now,
                 )
@@ -224,9 +301,10 @@ class ApplicationWorkflowModule:
         row: ApplicationWorkflowRow,
         target_stage: WorkflowStage,
         note: str | None,
+        occurred_at: datetime | None = None,
     ) -> None:
         previous = row.stage
-        occurred_at = datetime.now(timezone.utc)
+        occurred_at = occurred_at or datetime.now(timezone.utc)
         row.stage = target_stage
         row.updated_at = occurred_at
         session.add(
@@ -240,7 +318,27 @@ class ApplicationWorkflowModule:
         )
 
     @staticmethod
+    def _validate_document_versions(
+        session: Session,
+        row: ApplicationWorkflowRow,
+        versions: list[SubmittedDocumentVersion],
+    ) -> None:
+        if not versions:
+            return
+        if row.packet_id is None:
+            raise SubmittedDocumentVersionNotFoundError
+        available = {
+            (document.document_type, document.version)
+            for document in session.scalars(
+                select(DocumentExportRow).where(DocumentExportRow.packet_id == row.packet_id)
+            ).all()
+        }
+        if any((version.document_type, version.version) not in available for version in versions):
+            raise SubmittedDocumentVersionNotFoundError
+
+    @staticmethod
     def _item(session: Session, row: ApplicationWorkflowRow) -> WorkflowItem:
+        details = row.opportunity_payload
         transitions = session.scalars(
             select(ApplicationWorkflowTransitionRow)
             .where(ApplicationWorkflowTransitionRow.opportunity_id == row.opportunity_id)
@@ -266,7 +364,26 @@ class ApplicationWorkflowModule:
             disposition=cast(WorkflowDisposition | None, row.disposition),
             skip_reason=row.skip_reason,
             outcome=row.outcome,
-            opportunity=WorkflowOpportunity.model_validate(row.opportunity_payload),
+            source_platform=str(details.get("source_platform", "unknown")),
+            original_score=OpportunityScore.model_validate(details["original_score"])
+            if details.get("original_score") is not None
+            else None,
+            packet_id=row.packet_id,
+            applied_at=details.get("applied_at"),
+            company_type=cast(CompanyType | None, details.get("company_type")),
+            document_versions=[
+                SubmittedDocumentVersion.model_validate(version)
+                for version in details.get("document_versions", [])
+            ],
+            outcomes=[
+                OutcomeEvent.model_validate(event) for event in details.get("outcomes", [])
+            ],
+            opportunity=WorkflowOpportunity(
+                company=str(details["company"]),
+                title=str(details["title"]),
+                location=str(details["location"]),
+                direct_apply_link=str(details["direct_apply_link"]),
+            ),
             packet=packet,
             history=[
                 WorkflowTransition(

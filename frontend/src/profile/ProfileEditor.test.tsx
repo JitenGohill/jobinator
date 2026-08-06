@@ -28,6 +28,25 @@ function mockProfileRequests(
     if (input === "/api/application-workflow") {
       return new Response(JSON.stringify({items: []}), {status: 200});
     }
+    if (input === "/api/application-analytics") {
+      return new Response(JSON.stringify({
+        packets_prepared: 0,
+        applications_submitted: 0,
+        applications_per_day: [],
+        review_rejection_rate: {numerator: 0, denominator: 0, rate: null},
+        source_quality: [],
+        score_distribution: [],
+        response_rate_by_role: [],
+        response_rate_by_source: [],
+        response_rate_by_company_type: [],
+        common_reject_reasons: [],
+        definitions: {
+          review_rejection_rate: "No completed review decisions.",
+          source_quality: "No submitted applications.",
+          response_rate: "No submitted applications.",
+        },
+      }), {status: 200});
+    }
     if (input === "/api/discovery/links" || input === "/api/discovery/link-sources") {
       return new Response(JSON.stringify([]), {status: 200});
     }

@@ -7,6 +7,8 @@ import {
 } from "./applicationClient";
 import type {
   ApplicationPacketPreview,
+  CompanyType,
+  OutcomeType,
   WorkflowItem,
   WorkflowStage,
   WorkflowTransitionRequest,
@@ -54,6 +56,7 @@ export function ApplicationWorkflowBoard({refreshKey}: {refreshKey: number | nul
     request: WorkflowTransitionRequest,
   ) => {
     update(await transitionApplicationWorkflow(opportunityId, request));
+    window.dispatchEvent(new Event("application-workflow-updated"));
   };
 
   const prepare = async (opportunityId: number, screeningQuestions: string[]) => {
@@ -112,6 +115,12 @@ function WorkflowCard({
   const [error, setError] = useState<string | null>(null);
   const [skipReason, setSkipReason] = useState("");
   const [outcome, setOutcome] = useState("");
+  const [outcomeType, setOutcomeType] = useState<OutcomeType>("response");
+  const [outcomeDate, setOutcomeDate] = useState("");
+  const [applicationDate, setApplicationDate] = useState("");
+  const [companyType, setCompanyType] = useState<CompanyType | "">("");
+  const [cvVersion, setCvVersion] = useState("");
+  const [coverLetterVersion, setCoverLetterVersion] = useState("");
   const [screeningQuestions, setScreeningQuestions] = useState("");
 
   const act = async (action: () => Promise<void>) => {
@@ -134,6 +143,14 @@ function WorkflowCard({
       <p className="job-company">{item.opportunity.company}</p>
       <h3>{item.opportunity.title}</h3>
       <p className="workflow-location">{item.opportunity.location}</p>
+      {item.source_platform && <p>Source: {item.source_platform}</p>}
+      {item.original_score && <p>Original score: {item.original_score.total} / 100</p>}
+      {item.applied_at && <p>Applied: {item.applied_at.slice(0, 10)}</p>}
+      {item.document_versions?.map((document) => (
+        <p key={`${document.document_type}-${document.version}`}>
+          Submitted {document.document_type === "cv" ? "CV" : "cover letter"} v{document.version}
+        </p>
+      ))}
 
       {item.stage === "discovered" && (
         <button type="button" disabled={working} onClick={() => void transition({target_stage: "shortlisted"})}>
@@ -172,10 +189,30 @@ function WorkflowCard({
             Open external application
           </a>
           <p>Jobinator never fills or submits the external application.</p>
+          <label htmlFor={`application-date-${item.opportunity_id}`}>Application date</label>
+          <input id={`application-date-${item.opportunity_id}`} type="datetime-local" value={applicationDate} onChange={(event) => setApplicationDate(event.target.value)} />
+          <label htmlFor={`company-type-${item.opportunity_id}`}>Company type</label>
+          <select id={`company-type-${item.opportunity_id}`} value={companyType} onChange={(event) => setCompanyType(event.target.value as CompanyType | "")}>
+            <option value="">Unspecified</option>
+            {(["product", "startup", "enterprise", "agency", "consultancy", "nonprofit", "government", "other"] as CompanyType[]).map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+          <label htmlFor={`cv-version-${item.opportunity_id}`}>Submitted CV version</label>
+          <input id={`cv-version-${item.opportunity_id}`} type="number" min="1" value={cvVersion} onChange={(event) => setCvVersion(event.target.value)} />
+          <label htmlFor={`cover-version-${item.opportunity_id}`}>Submitted cover letter version</label>
+          <input id={`cover-version-${item.opportunity_id}`} type="number" min="1" value={coverLetterVersion} onChange={(event) => setCoverLetterVersion(event.target.value)} />
           <button
             type="button"
             disabled={working}
-            onClick={() => void transition({target_stage: "applied", submitted_externally: true})}
+            onClick={() => void transition({
+              target_stage: "applied",
+              submitted_externally: true,
+              ...(applicationDate ? {occurred_at: new Date(applicationDate).toISOString()} : {}),
+              ...(companyType ? {company_type: companyType} : {}),
+              ...((cvVersion || coverLetterVersion) ? {document_versions: [
+                ...(cvVersion ? [{document_type: "cv" as const, version: Number(cvVersion)}] : []),
+                ...(coverLetterVersion ? [{document_type: "cover_letter" as const, version: Number(coverLetterVersion)}] : []),
+              ]} : {}),
+            })}
           >
             I completed submission externally
           </button>
@@ -186,16 +223,35 @@ function WorkflowCard({
           Move to follow-up
         </button>
       )}
-      {(item.stage === "applied" || item.stage === "follow_up") && (
+      {(item.stage === "applied" || item.stage === "follow_up" || item.stage === "outcome") && (
         <div className="workflow-detail-action">
-          <label htmlFor={`outcome-${item.opportunity_id}`}>Outcome</label>
+          <label htmlFor={`outcome-type-${item.opportunity_id}`}>Outcome type</label>
+          <select id={`outcome-type-${item.opportunity_id}`} value={outcomeType} onChange={(event) => setOutcomeType(event.target.value as OutcomeType)}>
+            <option value="response">Response</option>
+            <option value="recruiter_screen">Recruiter screen</option>
+            <option value="interview">Interview</option>
+            <option value="rejection">Rejection</option>
+            <option value="offer">Offer</option>
+          </select>
+          <label htmlFor={`outcome-${item.opportunity_id}`}>Outcome details</label>
           <input id={`outcome-${item.opportunity_id}`} value={outcome} onChange={(event) => setOutcome(event.target.value)} />
-          <button type="button" disabled={working || !outcome.trim()} onClick={() => void transition({target_stage: "outcome", outcome: outcome.trim()})}>
+          <label htmlFor={`outcome-date-${item.opportunity_id}`}>Outcome date</label>
+          <input id={`outcome-date-${item.opportunity_id}`} type="datetime-local" value={outcomeDate} onChange={(event) => setOutcomeDate(event.target.value)} />
+          <button type="button" disabled={working || !outcome.trim()} onClick={() => void transition({
+            target_stage: "outcome",
+            outcome_type: outcomeType,
+            outcome: outcome.trim(),
+            ...(outcomeDate ? {occurred_at: new Date(outcomeDate).toISOString()} : {}),
+          })}>
             Record outcome
           </button>
         </div>
       )}
-      {item.stage === "outcome" && item.outcome && <p>{item.outcome}</p>}
+      {item.outcomes?.map((event) => (
+        <p key={`${event.outcome_type}-${event.occurred_at}`}>
+          {event.outcome_type.replace("_", " ")} — {event.note}
+        </p>
+      ))}
       {item.stage === "rejected_skipped" && (
         <p>{item.disposition === "rejected" ? "Rejected by eligibility screening." : `Skipped: ${item.skip_reason}`}</p>
       )}

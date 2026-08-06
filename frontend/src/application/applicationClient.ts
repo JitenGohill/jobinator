@@ -1,5 +1,6 @@
 import type {
   ApplicationPacketPreview,
+  ApplicationAnalytics,
   ExportBundle,
   WorkflowBoard,
   WorkflowItem,
@@ -46,6 +47,21 @@ export async function loadApplicationWorkflow(): Promise<WorkflowBoard> {
     throw new Error("The application workflow response was invalid.");
   }
   return board;
+}
+
+export async function loadApplicationAnalytics(): Promise<ApplicationAnalytics> {
+  const analytics = await requireJson<ApplicationAnalytics>(
+    await fetch("/api/application-analytics"),
+  );
+  if (
+    typeof analytics.packets_prepared !== "number"
+    || typeof analytics.applications_submitted !== "number"
+    || !analytics.review_rejection_rate
+    || !Array.isArray(analytics.applications_per_day)
+  ) {
+    throw new Error("The application analytics response was invalid.");
+  }
+  return analytics;
 }
 
 export async function transitionApplicationWorkflow(

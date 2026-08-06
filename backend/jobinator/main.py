@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, sessionmaker
 
+from jobinator.application.analytics import ApplicationAnalytics, ApplicationAnalyticsModule
 from jobinator.application.exports import (
     ApplicationPacketNotFoundError,
     DocumentExportModule,
@@ -38,6 +39,7 @@ from jobinator.application.workflow import (
     ApplicationWorkflowModule,
     ExternalSubmissionConfirmationRequiredError,
     InvalidWorkflowTransitionError,
+    SubmittedDocumentVersionNotFoundError,
     WorkflowBoard,
     WorkflowDetailRequiredError,
     WorkflowItem,
@@ -289,6 +291,12 @@ def create_app(
     ) -> WorkflowBoard:
         return module.board()
 
+    @app.get("/api/application-analytics", response_model=ApplicationAnalytics)
+    async def get_application_analytics(
+        module: ApplicationWorkflowDependency,
+    ) -> ApplicationAnalytics:
+        return ApplicationAnalyticsModule(module).report()
+
     @app.post(
         "/api/application-workflow/{opportunity_id}/transitions",
         response_model=WorkflowItem,
@@ -322,6 +330,11 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This workflow transition requires a reason or outcome.",
+            ) from error
+        except SubmittedDocumentVersionNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A submitted document version does not belong to this packet.",
             ) from error
 
     @app.post(
