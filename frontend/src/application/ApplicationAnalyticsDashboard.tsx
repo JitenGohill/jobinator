@@ -43,7 +43,13 @@ export function ApplicationAnalyticsDashboard() {
             <MetricList title="Applications per day" entries={analytics.applications_per_day.map(
               (entry) => `${entry.date}: ${entry.count}`,
             )} />
-            <RateList title="Source quality" rates={analytics.source_quality} />
+            <MetricList title="Source quality" entries={analytics.source_quality.map(
+              (source) => (
+                `${source.source_platform}: ${source.applications} applications · `
+                + `${source.responses} responses · ${source.interviews} interviews · `
+                + `${source.offers} offers`
+              ),
+            )} />
             <MetricList title="Original score distribution" entries={analytics.score_distribution.map(
               (bucket) => `${bucket.label}: ${bucket.count}`,
             )} />

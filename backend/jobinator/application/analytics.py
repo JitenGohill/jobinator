@@ -31,6 +31,16 @@ class GroupRate(AnalyticsModel):
     response_rate: float
 
 
+class SourceQuality(AnalyticsModel):
+    source_platform: str
+    applications: int
+    responses: int
+    recruiter_screens: int
+    interviews: int
+    rejections: int
+    offers: int
+
+
 class ScoreBucket(AnalyticsModel):
     label: str
     minimum: int
@@ -54,7 +64,7 @@ class ApplicationAnalytics(AnalyticsModel):
     applications_submitted: int
     applications_per_day: list[DailyApplications]
     review_rejection_rate: Rate
-    source_quality: list[GroupRate]
+    source_quality: list[SourceQuality]
     score_distribution: list[ScoreBucket]
     response_rate_by_role: list[GroupRate]
     response_rate_by_source: list[GroupRate]
@@ -74,14 +84,8 @@ class ApplicationAnalyticsModule:
     def report(self) -> ApplicationAnalytics:
         items = self._workflow.board().items
         submitted = [item for item in items if item.applied_at is not None]
-        reviewed_decisions = [
-            item
-            for item in items
-            if any(entry.to_stage == "reviewed" for entry in item.history)
-        ]
-        review_rejections = [
-            item for item in reviewed_decisions if item.disposition == "skipped"
-        ]
+        review_rejections = [item for item in items if item.disposition == "skipped"]
+        reviewed_decisions = [*submitted, *review_rejections]
         daily_counts = Counter(item.applied_at.date() for item in submitted if item.applied_at)
         rejection_reasons = Counter(
             event.note
@@ -90,14 +94,14 @@ class ApplicationAnalyticsModule:
             if event.outcome_type == "rejection"
         )
         return ApplicationAnalytics(
-            packets_prepared=sum(item.packet_id is not None for item in items),
+            packets_prepared=self._workflow.prepared_packet_count(),
             applications_submitted=len(submitted),
             applications_per_day=[
                 DailyApplications(date=day, count=count)
                 for day, count in sorted(daily_counts.items())
             ],
             review_rejection_rate=_rate(len(review_rejections), len(reviewed_decisions)),
-            source_quality=_group_rates(submitted, lambda item: item.source_platform),
+            source_quality=_source_quality(submitted),
             score_distribution=[
                 ScoreBucket(
                     label=label,
@@ -128,14 +132,12 @@ class ApplicationAnalyticsModule:
             ],
             definitions=AnalyticsDefinitions(
                 review_rejection_rate=(
-                    "Reviewed opportunities skipped before submission divided by all "
-                    "opportunities with a completed review decision."
+                    "User-skipped opportunities divided by submitted applications plus "
+                    "user-skipped opportunities."
                 ),
-                source_quality=(
-                    "Explicit response events divided by submitted applications for each source."
-                ),
+                source_quality="Recorded employer outcomes by submitted application source.",
                 response_rate=(
-                    "Submitted applications with an explicit response event divided by submitted "
+                    "Submitted applications with a recorded employer outcome divided by submitted "
                     "applications in the group."
                 ),
             ),
@@ -157,21 +159,37 @@ def _group_rates(
     groups: dict[str, list[WorkflowItem]] = defaultdict(list)
     for item in items:
         groups[group_for(item)].append(item)
-    return [
-        GroupRate(
+    rates = []
+    for group, group_items in sorted(groups.items()):
+        response_count = sum(bool(item.outcomes) for item in group_items)
+        rates.append(GroupRate(
             group=group,
             applications=len(group_items),
-            responses=sum(
-                any(event.outcome_type == "response" for event in item.outcomes)
-                for item in group_items
-            ),
-            response_rate=(
-                sum(
-                    any(event.outcome_type == "response" for event in item.outcomes)
-                    for item in group_items
-                )
-                / len(group_items)
-            ),
+            responses=response_count,
+            response_rate=response_count / len(group_items),
+        ))
+    return rates
+
+
+def _source_quality(items: list[WorkflowItem]) -> list[SourceQuality]:
+    groups: dict[str, list[WorkflowItem]] = defaultdict(list)
+    for item in items:
+        groups[item.source_platform].append(item)
+    return [
+        SourceQuality(
+            source_platform=source,
+            applications=len(group_items),
+            responses=_applications_with(group_items, "response"),
+            recruiter_screens=_applications_with(group_items, "recruiter_screen"),
+            interviews=_applications_with(group_items, "interview"),
+            rejections=_applications_with(group_items, "rejection"),
+            offers=_applications_with(group_items, "offer"),
         )
-        for group, group_items in sorted(groups.items())
+        for source, group_items in sorted(groups.items())
     ]
+
+
+def _applications_with(items: list[WorkflowItem], outcome_type: str) -> int:
+    return sum(
+        any(event.outcome_type == outcome_type for event in item.outcomes) for item in items
+    )

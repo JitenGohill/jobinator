@@ -94,14 +94,12 @@ async def test_analytics_are_empty_and_explicit_before_any_history(tmp_path: Pat
         "common_reject_reasons": [],
         "definitions": {
             "review_rejection_rate": (
-                "Reviewed opportunities skipped before submission divided by all "
-                "opportunities with a completed review decision."
+                "User-skipped opportunities divided by submitted applications plus "
+                "user-skipped opportunities."
             ),
-            "source_quality": (
-                "Explicit response events divided by submitted applications for each source."
-            ),
+            "source_quality": "Recorded employer outcomes by submitted application source.",
             "response_rate": (
-                "Submitted applications with an explicit response event divided by submitted "
+                "Submitted applications with a recorded employer outcome divided by submitted "
                 "applications in the group."
             ),
         },
@@ -178,7 +176,7 @@ async def test_dated_histories_drive_all_analytics_without_mutating_original_con
             },
         )
 
-        await prepare_reviewed(client, 2)
+        await client.post("/api/application-packets/2", json={})
         skipped = await client.post(
             "/api/application-workflow/2/transitions",
             json={
@@ -187,6 +185,11 @@ async def test_dated_histories_drive_all_analytics_without_mutating_original_con
                 "occurred_at": "2026-08-01T12:00:00Z",
             },
         )
+        await client.put(
+            "/api/profile",
+            json={"profile": {**profile, "base_cv": "Updated CV."}, "expected_version": 1},
+        )
+        regenerated = await client.post("/api/application-packets/1", json={})
         analytics = await client.get("/api/application-analytics")
         board = await client.get("/api/application-workflow")
 
@@ -197,6 +200,8 @@ async def test_dated_histories_drive_all_analytics_without_mutating_original_con
     assert second_applied.status_code == 200
     assert second_rejected.status_code == 200
     assert skipped.status_code == 200
+    assert regenerated.status_code == 200
+    assert regenerated.json()["id"] != first_packet["id"]
 
     first_item = next(item for item in board.json()["items"] if item["opportunity_id"] == 1)
     assert first_item["applied_at"] == "2026-08-01T10:00:00Z"
@@ -211,7 +216,7 @@ async def test_dated_histories_drive_all_analytics_without_mutating_original_con
     assert first_item["packet"]["score"]["total"] == 100
 
     report = analytics.json()
-    assert report["packets_prepared"] == 3
+    assert report["packets_prepared"] == 4
     assert report["applications_submitted"] == 2
     assert report["applications_per_day"] == [{"date": "2026-08-01", "count": 2}]
     assert report["review_rejection_rate"] == {
@@ -221,16 +226,22 @@ async def test_dated_histories_drive_all_analytics_without_mutating_original_con
     }
     assert report["source_quality"] == [
         {
-            "group": "company",
+            "source_platform": "company",
             "applications": 1,
             "responses": 1,
-            "response_rate": 1.0,
+            "recruiter_screens": 0,
+            "interviews": 1,
+            "rejections": 0,
+            "offers": 0,
         },
         {
-            "group": "lever",
+            "source_platform": "lever",
             "applications": 1,
             "responses": 0,
-            "response_rate": 0.0,
+            "recruiter_screens": 0,
+            "interviews": 0,
+            "rejections": 1,
+            "offers": 0,
         },
     ]
     assert report["score_distribution"] == [
@@ -250,17 +261,20 @@ async def test_dated_histories_drive_all_analytics_without_mutating_original_con
         {
             "group": "Platform Engineer",
             "applications": 1,
-            "responses": 0,
-            "response_rate": 0.0,
+            "responses": 1,
+            "response_rate": 1.0,
         },
     ]
-    assert report["response_rate_by_source"] == report["source_quality"]
+    assert report["response_rate_by_source"] == [
+        {"group": "company", "applications": 1, "responses": 1, "response_rate": 1.0},
+        {"group": "lever", "applications": 1, "responses": 1, "response_rate": 1.0},
+    ]
     assert report["response_rate_by_company_type"] == [
         {
             "group": "enterprise",
             "applications": 1,
-            "responses": 0,
-            "response_rate": 0.0,
+            "responses": 1,
+            "response_rate": 1.0,
         },
         {
             "group": "product",

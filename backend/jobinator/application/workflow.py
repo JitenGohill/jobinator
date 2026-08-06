@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from jobinator.application.models import ApplicationPacket
@@ -162,13 +162,18 @@ class ApplicationWorkflowModule:
             row = session.get(ApplicationWorkflowRow, packet.opportunity_id)
             if row is None:
                 raise WorkflowItemNotFoundError
-            row.packet_id = packet.id
+            if row.packet_id is None:
+                row.packet_id = packet.id
             details = dict(row.opportunity_payload)
             if details.get("original_score") is None:
                 details["original_score"] = packet.score.model_dump(mode="json")
             row.opportunity_payload = details
             if row.stage == "shortlisted":
                 self._move(session, row, "packet_ready", "Review packet prepared.")
+
+    def prepared_packet_count(self) -> int:
+        with self._sessions() as session:
+            return session.scalar(select(func.count()).select_from(ApplicationPacketRow)) or 0
 
     def transition(
         self,

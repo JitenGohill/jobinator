@@ -15,7 +15,7 @@ test("dashboard presents transparent application analytics and distinguishes pac
     applications_per_day: [{date: "2026-08-01", count: 2}],
     review_rejection_rate: {numerator: 1, denominator: 3, rate: 1 / 3},
     source_quality: [
-      {group: "company", applications: 2, responses: 1, response_rate: 0.5},
+      {source_platform: "company", applications: 2, responses: 1, recruiter_screens: 1, interviews: 1, rejections: 1, offers: 0},
     ],
     score_distribution: [
       {label: "90–100", minimum: 90, maximum: 100, count: 2},
@@ -44,7 +44,8 @@ test("dashboard presents transparent application analytics and distinguishes pac
   expect(screen.getByText("2 applications submitted")).toBeInTheDocument();
   expect(screen.getByText("33.3% (1/3)")).toBeInTheDocument();
   expect(screen.getByText("2026-08-01: 2")).toBeInTheDocument();
-  expect(screen.getAllByText("company: 50.0% (1/2)").length).toBeGreaterThan(0);
+  expect(screen.getByText("company: 2 applications · 1 responses · 1 interviews · 0 offers")).toBeInTheDocument();
+  expect(screen.getByText("company: 50.0% (1/2)")).toBeInTheDocument();
   expect(screen.getByText("90–100: 2")).toBeInTheDocument();
   expect(screen.getByText("Experience requirement: 1")).toBeInTheDocument();
   expect(screen.getByText("Reviewed skips divided by completed review decisions.")).toBeInTheDocument();

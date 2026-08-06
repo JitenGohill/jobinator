@@ -112,12 +112,22 @@ export interface AnalyticsGroupRate {
   response_rate: number;
 }
 
+export interface SourceQuality {
+  source_platform: string;
+  applications: number;
+  responses: number;
+  recruiter_screens: number;
+  interviews: number;
+  rejections: number;
+  offers: number;
+}
+
 export interface ApplicationAnalytics {
   packets_prepared: number;
   applications_submitted: number;
   applications_per_day: {date: string; count: number}[];
   review_rejection_rate: AnalyticsRate;
-  source_quality: AnalyticsGroupRate[];
+  source_quality: SourceQuality[];
   score_distribution: {label: string; minimum: number; maximum: number; count: number}[];
   response_rate_by_role: AnalyticsGroupRate[];
   response_rate_by_source: AnalyticsGroupRate[];
