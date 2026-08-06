@@ -1,5 +1,6 @@
 import {useEffect, useState} from "react";
 
+import {ApplicationWorkflowBoard} from "./application/ApplicationWorkflowBoard";
 import {DiscoveryDashboard} from "./discovery/DiscoveryDashboard";
 import {ProfileEditor} from "./profile/ProfileEditor";
 import {loadProfile, saveProfile} from "./profile/profileClient";
@@ -56,6 +57,7 @@ export function App() {
         <span className="local-badge">Local only</span>
       </header>
       <main>
+        <ApplicationWorkflowBoard refreshKey={savedProfile?.version ?? null} />
         <DiscoveryDashboard profileVersion={savedProfile?.version ?? null} />
         <div className="page-heading">
           <p className="eyebrow">Source of truth</p>

@@ -1,4 +1,10 @@
-import type {ApplicationPacketPreview, ExportBundle} from "./types";
+import type {
+  ApplicationPacketPreview,
+  ExportBundle,
+  WorkflowBoard,
+  WorkflowItem,
+  WorkflowTransitionRequest,
+} from "./types";
 
 async function requireJson<T>(response: Response): Promise<T> {
   if (response.ok) {
@@ -17,11 +23,12 @@ async function requireJson<T>(response: Response): Promise<T> {
 
 export async function prepareApplicationPacket(
   opportunityId: number,
+  screeningQuestions: string[] = [],
 ): Promise<ApplicationPacketPreview> {
   const response = await fetch(`/api/application-packets/${opportunityId}`, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({cover_letter_requested: false, screening_questions: []}),
+    body: JSON.stringify({cover_letter_requested: false, screening_questions: screeningQuestions}),
   });
   return requireJson<ApplicationPacketPreview>(response);
 }
@@ -31,4 +38,24 @@ export async function exportApplicationPacket(packetId: number): Promise<ExportB
     method: "POST",
   });
   return requireJson<ExportBundle>(response);
+}
+
+export async function loadApplicationWorkflow(): Promise<WorkflowBoard> {
+  const board = await requireJson<WorkflowBoard>(await fetch("/api/application-workflow"));
+  if (!Array.isArray(board.items)) {
+    throw new Error("The application workflow response was invalid.");
+  }
+  return board;
+}
+
+export async function transitionApplicationWorkflow(
+  opportunityId: number,
+  request: WorkflowTransitionRequest,
+): Promise<WorkflowItem> {
+  const response = await fetch(`/api/application-workflow/${opportunityId}/transitions`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(request),
+  });
+  return requireJson<WorkflowItem>(response);
 }

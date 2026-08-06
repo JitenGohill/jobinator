@@ -152,6 +152,119 @@ async def test_packet_is_complete_truthful_and_deterministic_without_live_ai(
 
 
 @pytest.mark.anyio
+async def test_application_workflow_is_manual_valid_and_persists_history(
+    tmp_path: Path,
+    load_fixture: Callable[[str], Any],
+) -> None:
+    profile = load_fixture("profile.json")
+    postings = load_fixture("candidate_queue.json")["jobs"]
+    database_url = f"sqlite:///{tmp_path / 'jobinator.db'}"
+    app = create_app(database_url=database_url)
+    configure_fixture_discovery(
+        app,
+        postings,
+        lambda: datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.put("/api/profile", json={"profile": profile, "expected_version": None})
+        await client.post("/api/discovery/ingest")
+        initial = await client.get("/api/application-workflow")
+        await client.post("/api/application-packets/1", json={})
+        packet_ready = await client.get("/api/application-workflow")
+        invalid = await client.post(
+            "/api/application-workflow/1/transitions",
+            json={"target_stage": "applied", "submitted_externally": True},
+        )
+        reviewed = await client.post(
+            "/api/application-workflow/1/transitions",
+            json={"target_stage": "reviewed"},
+        )
+        unconfirmed = await client.post(
+            "/api/application-workflow/1/transitions",
+            json={"target_stage": "applied"},
+        )
+        applied = await client.post(
+            "/api/application-workflow/1/transitions",
+            json={"target_stage": "applied", "submitted_externally": True},
+        )
+        follow_up = await client.post(
+            "/api/application-workflow/1/transitions",
+            json={"target_stage": "follow_up"},
+        )
+        outcome = await client.post(
+            "/api/application-workflow/1/transitions",
+            json={"target_stage": "outcome", "outcome": "Interview requested."},
+        )
+        other_shortlisted = next(
+            item
+            for item in initial.json()["items"]
+            if item["stage"] == "shortlisted" and item["opportunity_id"] != 1
+        )
+        skipped = await client.post(
+            f"/api/application-workflow/{other_shortlisted['opportunity_id']}/transitions",
+            json={"target_stage": "rejected_skipped", "skip_reason": "Role is now closed."},
+        )
+
+    assert initial.status_code == 200
+    initial_item = next(item for item in initial.json()["items"] if item["opportunity_id"] == 1)
+    assert initial_item["stage"] == "shortlisted"
+    assert initial_item["history"][0]["to_stage"] == "shortlisted"
+
+    ready_item = next(
+        item for item in packet_ready.json()["items"] if item["opportunity_id"] == 1
+    )
+    assert ready_item["stage"] == "packet_ready"
+    assert ready_item["packet"]["score"]["total"] == 100
+    assert ready_item["packet"]["direct_apply_link"] == postings[0]["canonical_url"]
+    assert invalid.status_code == 409
+    assert reviewed.status_code == 200
+    assert unconfirmed.status_code == 400
+    assert unconfirmed.json() == {
+        "detail": "Confirm that you completed submission externally before recording applied."
+    }
+    assert applied.status_code == 200
+    assert applied.json()["stage"] == "applied"
+    assert [entry["to_stage"] for entry in applied.json()["history"]] == [
+        "shortlisted",
+        "packet_ready",
+        "reviewed",
+        "applied",
+    ]
+    assert applied.json()["history"][-1]["note"] == "Submitted externally by the user."
+    assert follow_up.json()["stage"] == "follow_up"
+    assert outcome.json()["stage"] == "outcome"
+    assert outcome.json()["outcome"] == "Interview requested."
+    assert skipped.json()["stage"] == "rejected_skipped"
+    assert skipped.json()["disposition"] == "skipped"
+    assert skipped.json()["skip_reason"] == "Role is now closed."
+
+    restarted_app = create_app(database_url=database_url)
+    configure_fixture_discovery(
+        restarted_app,
+        postings,
+        lambda: datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc),
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=restarted_app), base_url="http://test"
+    ) as client:
+        restarted = await client.get("/api/application-workflow")
+
+    restarted_item = next(
+        item for item in restarted.json()["items"] if item["opportunity_id"] == 1
+    )
+    assert restarted_item["stage"] == "outcome"
+    assert [entry["to_stage"] for entry in restarted_item["history"]] == [
+        "shortlisted",
+        "packet_ready",
+        "reviewed",
+        "applied",
+        "follow_up",
+        "outcome",
+    ]
+
+
+@pytest.mark.anyio
 async def test_reviewed_packet_exports_versioned_cv_as_markdown_and_pdf(
     tmp_path: Path,
     load_fixture: Callable[[str], Any],
@@ -249,7 +362,7 @@ async def test_cover_letter_is_generated_when_posting_makes_it_useful(
         await client.post("/api/discovery/ingest")
         response = await client.post(
             "/api/application-packets/1",
-            json={"screening_questions": ["Are you a US citizen?"]},
+            json={"screening_questions": ["Why are you interested in this role?"]},
         )
 
     assert response.status_code == 200
@@ -371,7 +484,7 @@ async def test_packet_surfaces_missing_experience_location_and_review_risks(
         await client.post("/api/discovery/ingest")
         response = await client.post(
             "/api/application-packets/1",
-            json={"screening_questions": ["Are you authorized to work in the US?"]},
+            json={},
         )
 
     assert response.status_code == 200
@@ -381,17 +494,41 @@ async def test_packet_surfaces_missing_experience_location_and_review_risks(
         "missing_requirement",
         "unsupported_experience",
         "authorization_or_location_mismatch",
-        "manual_review_required",
     }
-    assert packet["screening_answers"] == [
-        {
-            "question": "Are you authorized to work in the US?",
-            "draft": (
-                "Insufficient canonical-profile evidence to draft an answer."
-            ),
-            "review_required": True,
-        }
-    ]
+    assert packet["screening_answers"] == []
+
+
+@pytest.mark.anyio
+async def test_packet_refuses_to_draft_legal_or_demographic_answers(
+    tmp_path: Path,
+    load_fixture: Callable[[str], Any],
+) -> None:
+    profile = load_fixture("profile.json")
+    posting = load_fixture("candidate_queue.json")["jobs"][0]
+    app = create_app(database_url=f"sqlite:///{tmp_path / 'jobinator.db'}")
+    configure_fixture_discovery(
+        app,
+        [posting],
+        lambda: datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.put("/api/profile", json={"profile": profile, "expected_version": None})
+        await client.post("/api/discovery/ingest")
+        authorization = await client.post(
+            "/api/application-packets/1",
+            json={"screening_questions": ["Are you authorized to work in the US?"]},
+        )
+        demographic = await client.post(
+            "/api/application-packets/1",
+            json={"screening_questions": ["What is your gender?"]},
+        )
+
+    assert authorization.status_code == 422
+    assert demographic.status_code == 422
+    assert "Legal and demographic screening answers are not drafted." in str(
+        authorization.json()
+    )
 
 
 @pytest.mark.anyio
@@ -422,7 +559,7 @@ async def test_unknown_provider_facts_are_omitted_and_flagged(
         await client.post("/api/discovery/ingest")
         response = await client.post(
             "/api/application-packets/1",
-            json={"screening_questions": ["Are you a US citizen?"]},
+            json={"screening_questions": ["Why are you interested in this role?"]},
         )
 
     assert response.status_code == 200

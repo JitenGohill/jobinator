@@ -25,6 +25,12 @@ function mockProfileRequests(
         {status: 409},
       );
     }
+    if (input === "/api/application-workflow") {
+      return new Response(JSON.stringify({items: []}), {status: 200});
+    }
+    if (input === "/api/discovery/links" || input === "/api/discovery/link-sources") {
+      return new Response(JSON.stringify([]), {status: 200});
+    }
     if (input === "/api/profile" && init?.method === "PUT") {
       return saveProfileResponse;
     }

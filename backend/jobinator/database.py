@@ -80,6 +80,34 @@ class ApplicationPacketRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ApplicationWorkflowRow(Base):
+    __tablename__ = "application_workflow"
+
+    opportunity_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stage: Mapped[str] = mapped_column(nullable=False)
+    disposition: Mapped[str | None] = mapped_column(nullable=True)
+    skip_reason: Mapped[str | None] = mapped_column(nullable=True)
+    outcome: Mapped[str | None] = mapped_column(nullable=True)
+    packet_id: Mapped[int | None] = mapped_column(
+        ForeignKey("application_packet.id"), nullable=True
+    )
+    opportunity_payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ApplicationWorkflowTransitionRow(Base):
+    __tablename__ = "application_workflow_transition"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    opportunity_id: Mapped[int] = mapped_column(
+        ForeignKey("application_workflow.opportunity_id"), nullable=False
+    )
+    from_stage: Mapped[str | None] = mapped_column(nullable=True)
+    to_stage: Mapped[str] = mapped_column(nullable=False)
+    note: Mapped[str | None] = mapped_column(nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class DocumentExportRow(Base):
     __tablename__ = "document_export"
     __table_args__ = (

@@ -34,6 +34,16 @@ from jobinator.application.runtime import (
     ApplicationGenerationRuntime,
     create_application_provider,
 )
+from jobinator.application.workflow import (
+    ApplicationWorkflowModule,
+    ExternalSubmissionConfirmationRequiredError,
+    InvalidWorkflowTransitionError,
+    WorkflowBoard,
+    WorkflowDetailRequiredError,
+    WorkflowItem,
+    WorkflowItemNotFoundError,
+    WorkflowTransitionRequest,
+)
 from jobinator.config import Settings
 from jobinator.database import (
     Base,
@@ -107,6 +117,19 @@ async def get_document_export_module(request: Request) -> DocumentExportModule:
 DocumentExportDependency = Annotated[
     DocumentExportModule,
     Depends(get_document_export_module),
+]
+
+
+async def get_application_workflow_module(request: Request) -> ApplicationWorkflowModule:
+    return ApplicationWorkflowModule(
+        sessions=cast(sessionmaker[Session], request.app.state.sessions),
+        discovery_module=cast(DiscoveryModule, request.app.state.discovery_module),
+    )
+
+
+ApplicationWorkflowDependency = Annotated[
+    ApplicationWorkflowModule,
+    Depends(get_application_workflow_module),
 ]
 
 
@@ -248,13 +271,57 @@ def create_app(
         opportunity_id: int,
         packet_request: ApplicationPacketRequest,
         module: ApplicationDependency,
+        workflow: ApplicationWorkflowDependency,
     ) -> ApplicationPacket:
         try:
-            return await module.generate_packet(opportunity_id, packet_request)
+            packet = await module.generate_packet(opportunity_id, packet_request)
+            workflow.record_packet(packet)
+            return packet
         except QueuedOpportunityNotFoundError as error:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The opportunity is not in the current candidate queue.",
+            ) from error
+
+    @app.get("/api/application-workflow", response_model=WorkflowBoard)
+    async def get_application_workflow(
+        module: ApplicationWorkflowDependency,
+    ) -> WorkflowBoard:
+        return module.board()
+
+    @app.post(
+        "/api/application-workflow/{opportunity_id}/transitions",
+        response_model=WorkflowItem,
+    )
+    async def transition_application_workflow(
+        opportunity_id: int,
+        transition_request: WorkflowTransitionRequest,
+        module: ApplicationWorkflowDependency,
+    ) -> WorkflowItem:
+        try:
+            return module.transition(opportunity_id, transition_request)
+        except WorkflowItemNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The workflow opportunity does not exist.",
+            ) from error
+        except InvalidWorkflowTransitionError as error:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="That workflow transition is not allowed.",
+            ) from error
+        except ExternalSubmissionConfirmationRequiredError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Confirm that you completed submission externally before "
+                    "recording applied."
+                ),
+            ) from error
+        except WorkflowDetailRequiredError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This workflow transition requires a reason or outcome.",
             ) from error
 
     @app.post(

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import re
 from typing import Literal, NewType
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from jobinator.discovery.models import JobSnapshot, OpportunityScore
 
@@ -14,6 +15,41 @@ class ApplicationModel(BaseModel):
 class ApplicationPacketRequest(ApplicationModel):
     cover_letter_requested: bool = False
     screening_questions: list[str] = Field(default_factory=list)
+
+    @field_validator("screening_questions")
+    @classmethod
+    def reject_legal_and_demographic_questions(cls, questions: list[str]) -> list[str]:
+        protected_markers = (
+            "citizen",
+            "citizenship",
+            "authorized to work",
+            "authorised to work",
+            "work authorization",
+            "sponsorship",
+            "visa",
+            "race",
+            "ethnicity",
+            "gender",
+            "sexual orientation",
+            "disability",
+            "disabled",
+            "veteran",
+            "date of birth",
+            "birth date",
+            "how old",
+            "your age",
+            "religion",
+            "marital",
+            "pregnant",
+            "criminal",
+            "conviction",
+        )
+        for question in questions:
+            normalized = " ".join(re.findall(r"[a-z]+", question.casefold()))
+            padded = f" {normalized} "
+            if any(f" {marker} " in padded for marker in protected_markers):
+                raise ValueError("Legal and demographic screening answers are not drafted.")
+        return questions
 
 
 class MatchedProfileContext(ApplicationModel):
