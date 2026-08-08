@@ -2,6 +2,7 @@ import {useEffect, useState} from "react";
 
 import {ApplicationWorkflowBoard} from "./application/ApplicationWorkflowBoard";
 import {ApplicationAnalyticsDashboard} from "./application/ApplicationAnalyticsDashboard";
+import {StrategyAdvicePanel} from "./application/StrategyAdvicePanel";
 import {DiscoveryDashboard} from "./discovery/DiscoveryDashboard";
 import {ProfileEditor} from "./profile/ProfileEditor";
 import {loadProfile, saveProfile} from "./profile/profileClient";
@@ -60,6 +61,7 @@ export function App() {
       <main>
         <ApplicationWorkflowBoard refreshKey={savedProfile?.version ?? null} />
         <ApplicationAnalyticsDashboard />
+        <StrategyAdvicePanel />
         <DiscoveryDashboard profileVersion={savedProfile?.version ?? null} />
         <div className="page-heading">
           <p className="eyebrow">Source of truth</p>

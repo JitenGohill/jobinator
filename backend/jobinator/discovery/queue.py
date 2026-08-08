@@ -74,13 +74,15 @@ def build_candidate_queue(
     include_maybe: bool = False,
     minimum_target: int = DEFAULT_MINIMUM_TARGET,
     maximum_target: int = DEFAULT_MAXIMUM_TARGET,
+    weights: dict[str, float] | None = None,
 ) -> CandidateQueue:
     if minimum_target > maximum_target:
         raise ValueError("The minimum queue target cannot exceed the maximum.")
 
+    ranking_weights = weights or SCORE_WEIGHTS
     scored = sorted(
         (
-            _score_opportunity(opportunity, profile)
+            _score_opportunity(opportunity, profile, ranking_weights)
             for opportunity in opportunities
             if opportunity.screening.lane != "rejected"
         ),
@@ -151,6 +153,7 @@ def build_candidate_queue(
 def _score_opportunity(
     opportunity: ScreenedOpportunity,
     profile: CanonicalProfile,
+    weights: dict[str, float],
 ) -> ScoredOpportunity:
     dimensions = {
         "eligibility": _eligibility_score(opportunity),
@@ -162,7 +165,7 @@ def _score_opportunity(
     total = round(
         sum(
             dimensions[name].value * weight
-            for name, weight in SCORE_WEIGHTS.items()
+            for name, weight in weights.items()
         ),
         2,
     )
@@ -170,7 +173,7 @@ def _score_opportunity(
         **opportunity.model_dump(),
         score=OpportunityScore(
             total=total,
-            weights=SCORE_WEIGHTS,
+            weights=weights,
             **dimensions,
         ),
     )

@@ -1,0 +1,48 @@
+{
+  "jobs": [
+    {
+      "source_url": "https://careers.alpha.example/backend-go",
+      "company": "Alpha Systems",
+      "title": "Junior Backend Engineer",
+      "location": "New York, NY",
+      "description_text": "Build Python and Go services. 1 year of software engineering experience.",
+      "detected_requirements": ["Python", "Go"],
+      "source_platform": "company",
+      "ats_posting_id": "alpha-go",
+      "canonical_url": "https://careers.alpha.example/backend-go"
+    },
+    {
+      "source_url": "https://jobs.lever.co/beta/backend-go",
+      "company": "Beta Cloud",
+      "title": "Junior Backend Engineer",
+      "location": "US Remote",
+      "description_text": "Build Python and Go services. 1 year of software engineering experience.",
+      "detected_requirements": ["Python", "Go"],
+      "source_platform": "lever",
+      "ats_posting_id": "beta-go",
+      "canonical_url": "https://jobs.lever.co/beta/backend-go"
+    },
+    {
+      "source_url": "https://jobs.example.com/agency/backend-go",
+      "company": "Unknown Recruiter",
+      "title": "Junior Backend Engineer",
+      "location": "New York, NY",
+      "description_text": "Build Python and Go services. Direct hire for a named client. Salary $90,000. 1 year of software engineering experience.",
+      "detected_requirements": ["Python", "Go"],
+      "source_platform": "job_board",
+      "ats_posting_id": "agency-go",
+      "canonical_url": "https://jobs.example.com/agency/backend-go"
+    },
+    {
+      "source_url": "https://careers.omega.example/senior-go",
+      "company": "Omega Corp",
+      "title": "Senior Backend Engineer",
+      "location": "New York, NY",
+      "description_text": "Build Python and Go services. 5 years of software engineering experience.",
+      "detected_requirements": ["Python", "Go"],
+      "source_platform": "company",
+      "ats_posting_id": "omega-go",
+      "canonical_url": "https://careers.omega.example/senior-go"
+    }
+  ]
+}

@@ -35,6 +35,13 @@ from jobinator.application.runtime import (
     ApplicationGenerationRuntime,
     create_application_provider,
 )
+from jobinator.application.strategy import (
+    ProposalDecisionRequest,
+    RankingProposal,
+    StrategyAdvice,
+    StrategyAdviceModule,
+    StrategyProposalNotFoundError,
+)
 from jobinator.application.workflow import (
     ApplicationWorkflowModule,
     ExternalSubmissionConfirmationRequiredError,
@@ -132,6 +139,22 @@ async def get_application_workflow_module(request: Request) -> ApplicationWorkfl
 ApplicationWorkflowDependency = Annotated[
     ApplicationWorkflowModule,
     Depends(get_application_workflow_module),
+]
+
+
+async def get_strategy_advice_module(request: Request) -> StrategyAdviceModule:
+    workflow = await get_application_workflow_module(request)
+    return StrategyAdviceModule(
+        sessions=cast(sessionmaker[Session], request.app.state.sessions),
+        discovery=cast(DiscoveryModule, request.app.state.discovery_module),
+        profile=cast(ProfileModule, request.app.state.profile_module),
+        workflow=workflow,
+    )
+
+
+StrategyAdviceDependency = Annotated[
+    StrategyAdviceModule,
+    Depends(get_strategy_advice_module),
 ]
 
 
@@ -296,6 +319,27 @@ def create_app(
         module: ApplicationWorkflowDependency,
     ) -> ApplicationAnalytics:
         return ApplicationAnalyticsModule(module).report()
+
+    @app.get("/api/strategy-advice", response_model=StrategyAdvice)
+    async def get_strategy_advice(module: StrategyAdviceDependency) -> StrategyAdvice:
+        return module.report()
+
+    @app.post(
+        "/api/strategy-proposals/{proposal_id}/decision",
+        response_model=RankingProposal,
+    )
+    async def decide_strategy_proposal(
+        proposal_id: int,
+        decision_request: ProposalDecisionRequest,
+        module: StrategyAdviceDependency,
+    ) -> RankingProposal:
+        try:
+            return module.decide(proposal_id, decision_request.decision)
+        except StrategyProposalNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The strategy proposal does not exist.",
+            ) from error
 
     @app.post(
         "/api/application-workflow/{opportunity_id}/transitions",

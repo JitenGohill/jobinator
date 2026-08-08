@@ -5,6 +5,9 @@ import type {
   WorkflowBoard,
   WorkflowItem,
   WorkflowTransitionRequest,
+  ProposalDecision,
+  RankingProposal,
+  StrategyAdvice,
 } from "./types";
 
 async function requireJson<T>(response: Response): Promise<T> {
@@ -62,6 +65,25 @@ export async function loadApplicationAnalytics(): Promise<ApplicationAnalytics> 
     throw new Error("The application analytics response was invalid.");
   }
   return analytics;
+}
+
+export async function loadStrategyAdvice(): Promise<StrategyAdvice> {
+  const advice = await requireJson<StrategyAdvice>(await fetch("/api/strategy-advice"));
+  if (!Array.isArray(advice.gap_findings) || !Array.isArray(advice.ranking_proposals)) {
+    throw new Error("The strategy advice response was invalid.");
+  }
+  return advice;
+}
+
+export async function decideStrategyProposal(
+  proposalId: number,
+  decision: ProposalDecision,
+): Promise<RankingProposal> {
+  return requireJson<RankingProposal>(await fetch(`/api/strategy-proposals/${proposalId}/decision`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({decision}),
+  }));
 }
 
 export async function transitionApplicationWorkflow(

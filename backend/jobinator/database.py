@@ -123,6 +123,20 @@ class DocumentExportRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class StrategyProposalRow(Base):
+    __tablename__ = "strategy_proposal"
+    __table_args__ = (UniqueConstraint("semantic_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    semantic_key: Mapped[str] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 def create_database_engine(database_url: str) -> Engine:
     parsed_url = make_url(database_url)
     database_path = parsed_url.database

@@ -47,6 +47,12 @@ function mockProfileRequests(
         },
       }), {status: 200});
     }
+    if (input === "/api/strategy-advice") {
+      return new Response(JSON.stringify({
+        gap_findings: [],
+        ranking_proposals: [],
+      }), {status: 200});
+    }
     if (input === "/api/discovery/links" || input === "/api/discovery/link-sources") {
       return new Response(JSON.stringify([]), {status: 200});
     }

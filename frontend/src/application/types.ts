@@ -140,6 +140,47 @@ export interface ApplicationAnalytics {
   };
 }
 
+export type ProposalStatus = "pending" | "accepted" | "rejected";
+export type ProposalDecision = "accepted" | "rejected";
+
+export interface GapFinding {
+  requirement: string;
+  occurrences: number;
+  priority_options: ("learning" | "portfolio" | "profile_presentation")[];
+  opportunities: {
+    opportunity_id: number;
+    company: string;
+    title: string;
+    score: number;
+    source_platform: string;
+    matched_skills: string[];
+    matched_projects: string[];
+    matched_work_experience: string[];
+  }[];
+}
+
+export interface RankingProposal {
+  id: number;
+  status: ProposalStatus;
+  dimension: string;
+  direction: "increase" | "decrease";
+  rationale: string;
+  current_weights: Record<string, number>;
+  proposed_weights: Record<string, number>;
+  evidence: {
+    opportunity_id: number;
+    company: string;
+    title: string;
+    outcome: string;
+    dimension_value: number;
+  }[];
+}
+
+export interface StrategyAdvice {
+  gap_findings: GapFinding[];
+  ranking_proposals: RankingProposal[];
+}
+
 export type DocumentType = "cv" | "cover_letter";
 
 export interface ExportedDocument {

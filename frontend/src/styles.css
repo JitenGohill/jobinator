@@ -1245,6 +1245,64 @@ textarea:focus {
   background: #fff;
 }
 
+.strategy-advice {
+  margin-bottom: 40px;
+  padding: 28px;
+  border: 1px solid #dedbd2;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.strategy-card {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.strategy-card h3 {
+  margin-top: 0;
+}
+
+.strategy-card li span {
+  display: block;
+  color: #52606d;
+}
+
+.proposal-heading,
+.proposal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.proposal-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.proposal-status.accepted {
+  background: #dcfce7;
+}
+
+.proposal-status.rejected {
+  background: #fee2e2;
+}
+
+.proposal-actions button {
+  flex: 1;
+}
+
 .analytics-summary,
 .analytics-grid {
   display: grid;
@@ -1286,6 +1344,10 @@ textarea:focus {
 @media (max-width: 700px) {
   main {
     padding-top: 36px;
+  }
+
+  .strategy-grid {
+    grid-template-columns: 1fr;
   }
 
   .field-grid,

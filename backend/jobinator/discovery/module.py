@@ -8,7 +8,7 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from jobinator.database import CanonicalProfileRow, JobSnapshotRow
+from jobinator.database import CanonicalProfileRow, JobSnapshotRow, StrategyProposalRow
 from jobinator.discovery.errors import SourceDiscoveryError
 from jobinator.discovery.models import (
     CandidateQueue,
@@ -20,7 +20,11 @@ from jobinator.discovery.models import (
 )
 from jobinator.discovery.opportunities import build_opportunities
 from jobinator.discovery.persistence import snapshot_row
-from jobinator.discovery.queue import CanonicalProfileRequiredError, build_candidate_queue
+from jobinator.discovery.queue import (
+    SCORE_WEIGHTS,
+    CanonicalProfileRequiredError,
+    build_candidate_queue,
+)
 from jobinator.discovery.screening import ScreeningPolicy
 from jobinator.profile.models import CanonicalProfile
 
@@ -143,7 +147,25 @@ class DiscoveryModule:
             profile,
             minimum_score=minimum_score,
             include_maybe=include_maybe,
+            weights=self.current_ranking_weights(),
         )
+
+    def current_ranking_weights(self) -> dict[str, float]:
+        with self._sessions() as session:
+            accepted = session.scalars(
+                select(StrategyProposalRow)
+                .where(StrategyProposalRow.status == "accepted")
+                .order_by(
+                    StrategyProposalRow.decided_at.desc(),
+                    StrategyProposalRow.id.desc(),
+                )
+            ).first()
+        if accepted is None:
+            return dict(SCORE_WEIGHTS)
+        weights = accepted.payload.get("proposed_weights")
+        if not isinstance(weights, dict) or set(weights) != set(SCORE_WEIGHTS):
+            return dict(SCORE_WEIGHTS)
+        return {name: float(value) for name, value in weights.items()}
 
     @staticmethod
     def _to_snapshot(row: JobSnapshotRow) -> JobSnapshot:
