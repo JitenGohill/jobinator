@@ -23,6 +23,17 @@
       "canonical_url": "https://jobs.lever.co/beta/backend-go"
     },
     {
+      "source_url": "https://jobs.greenhouse.io/gamma/backend-go",
+      "company": "Gamma Tools",
+      "title": "Junior Backend Engineer",
+      "location": "Chicago, IL",
+      "description_text": "Build Python and Go services. 1 year of software engineering experience.",
+      "detected_requirements": ["Python", "Go"],
+      "source_platform": "greenhouse",
+      "ats_posting_id": "gamma-go",
+      "canonical_url": "https://jobs.greenhouse.io/gamma/backend-go"
+    },
+    {
       "source_url": "https://jobs.example.com/agency/backend-go",
       "company": "Unknown Recruiter",
       "title": "Junior Backend Engineer",

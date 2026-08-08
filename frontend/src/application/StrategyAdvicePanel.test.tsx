@@ -31,8 +31,8 @@ const pendingAdvice = {
     dimension: "company_quality",
     direction: "increase",
     rationale: "Interview outcomes scored higher than rejection outcomes for company quality.",
-    current_weights: {company_quality: 0.15},
-    proposed_weights: {company_quality: 0.2},
+    current_weights: {eligibility: 0.3, company_quality: 0.15},
+    proposed_weights: {eligibility: 0.25, company_quality: 0.2},
     evidence: [
       {opportunity_id: 1, company: "Alpha Systems", title: "Junior Backend Engineer", outcome: "interview", dimension_value: 100},
       {opportunity_id: 2, company: "Beta Cloud", title: "Junior Backend Engineer", outcome: "rejection", dimension_value: 85},
@@ -66,6 +66,7 @@ test("user can judge gap evidence and explicitly accept a ranking proposal", asy
 
   expect(screen.getByText(/Interview outcomes scored higher/)).toBeInTheDocument();
   expect(screen.getByText("Proposed company quality weight: 15% → 20%")).toBeInTheDocument();
+  expect(screen.getByText("Proposed eligibility weight: 30% → 25%")).toBeInTheDocument();
   expect(screen.getByText(/Alpha Systems · Junior Backend Engineer · interview · company quality 100/)).toBeInTheDocument();
   await user.click(screen.getByRole("button", {name: "Accept ranking proposal"}));
 

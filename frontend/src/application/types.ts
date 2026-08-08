@@ -142,6 +142,13 @@ export interface ApplicationAnalytics {
 
 export type ProposalStatus = "pending" | "accepted" | "rejected";
 export type ProposalDecision = "accepted" | "rejected";
+export type RankingDimension =
+  | "eligibility"
+  | "role_fit"
+  | "skill_overlap"
+  | "company_quality"
+  | "application_effort";
+export type RankingWeights = Record<RankingDimension, number>;
 
 export interface GapFinding {
   requirement: string;
@@ -162,11 +169,11 @@ export interface GapFinding {
 export interface RankingProposal {
   id: number;
   status: ProposalStatus;
-  dimension: string;
+  dimension: RankingDimension;
   direction: "increase" | "decrease";
   rationale: string;
-  current_weights: Record<string, number>;
-  proposed_weights: Record<string, number>;
+  current_weights: RankingWeights;
+  proposed_weights: RankingWeights;
   evidence: {
     opportunity_id: number;
     company: string;

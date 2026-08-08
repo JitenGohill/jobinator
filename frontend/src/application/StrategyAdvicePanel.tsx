@@ -1,7 +1,13 @@
 import {useCallback, useEffect, useState} from "react";
 
 import {decideStrategyProposal, loadStrategyAdvice} from "./applicationClient";
-import type {GapFinding, ProposalDecision, RankingProposal, StrategyAdvice} from "./types";
+import type {
+  GapFinding,
+  ProposalDecision,
+  RankingDimension,
+  RankingProposal,
+  StrategyAdvice,
+} from "./types";
 
 export function StrategyAdvicePanel() {
   const [advice, setAdvice] = useState<StrategyAdvice | null>(null);
@@ -68,11 +74,15 @@ export function StrategyAdvicePanel() {
                   <span className={`proposal-status ${proposal.status}`}>{titleCase(proposal.status)}</span>
                 </div>
                 <p>{proposal.rationale}</p>
-                <p>
-                  Proposed {proposal.dimension.replaceAll("_", " ")} weight: {formatWeight(
-                    proposal.current_weights[proposal.dimension],
-                  )} → {formatWeight(proposal.proposed_weights[proposal.dimension])}
-                </p>
+                <div className="proposal-weight-changes">
+                  {changedDimensions(proposal).map((dimension) => (
+                    <p key={dimension}>
+                      Proposed {dimension.replaceAll("_", " ")} weight: {formatWeight(
+                        proposal.current_weights[dimension],
+                      )} → {formatWeight(proposal.proposed_weights[dimension])}
+                    </p>
+                  ))}
+                </div>
                 <ul>
                   {proposal.evidence.map((entry) => (
                     <li key={`${entry.opportunity_id}-${entry.outcome}`}>
@@ -138,4 +148,10 @@ function titleCase(value: string): string {
 
 function formatWeight(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function changedDimensions(proposal: RankingProposal): RankingDimension[] {
+  return (Object.keys(proposal.current_weights) as RankingDimension[]).filter(
+    (dimension) => proposal.current_weights[dimension] !== proposal.proposed_weights[dimension],
+  );
 }

@@ -100,7 +100,7 @@ async def test_strategy_advice_aggregates_supported_gaps_and_requires_proposal_a
         assert advice["gap_findings"] == [
             {
                 "requirement": "Go",
-                "occurrences": 2,
+                "occurrences": 3,
                 "priority_options": ["learning", "portfolio", "profile_presentation"],
                 "opportunities": [
                     {
@@ -119,6 +119,16 @@ async def test_strategy_advice_aggregates_supported_gaps_and_requires_proposal_a
                         "title": "Junior Backend Engineer",
                         "score": 86.75,
                         "source_platform": "lever",
+                        "matched_skills": ["Python"],
+                        "matched_projects": ["Queue Lens"],
+                        "matched_work_experience": [],
+                    },
+                    {
+                        "opportunity_id": 3,
+                        "company": "Gamma Tools",
+                        "title": "Junior Backend Engineer",
+                        "score": 86.75,
+                        "source_platform": "greenhouse",
                         "matched_skills": ["Python"],
                         "matched_projects": ["Queue Lens"],
                         "matched_work_experience": [],
@@ -192,3 +202,41 @@ async def test_rejected_proposal_stays_dismissed_instead_of_returning_as_new(
 
     assert rejected.status_code == 200
     assert refreshed == [{**first, "status": "rejected"}]
+
+
+@pytest.mark.anyio
+async def test_latest_recorded_outcome_drives_proposal_evidence_and_mixed_labels_are_honest(
+    tmp_path: Path,
+    load_fixture: Any,
+) -> None:
+    app = create_app(database_url=f"sqlite:///{tmp_path / 'jobinator.db'}")
+    configure_fixture_discovery(app, load_fixture("strategy_advice.json")["jobs"])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.put(
+            "/api/profile",
+            json={"profile": load_fixture("profile.json"), "expected_version": None},
+        )
+        await client.post("/api/discovery/ingest")
+        await record_outcome(client, 1, "interview")
+        await client.post(
+            "/api/application-workflow/1/transitions",
+            json={
+                "target_stage": "outcome",
+                "outcome_type": "rejection",
+                "outcome": "Rejected after interview.",
+            },
+        )
+        await record_outcome(client, 2, "response")
+        await record_outcome(client, 3, "interview")
+
+        proposal = (await client.get("/api/strategy-advice")).json()[
+            "ranking_proposals"
+        ][0]
+
+    assert "interview and response outcomes" in proposal["rationale"]
+    assert [entry["outcome"] for entry in proposal["evidence"]] == [
+        "rejection",
+        "response",
+        "interview",
+    ]

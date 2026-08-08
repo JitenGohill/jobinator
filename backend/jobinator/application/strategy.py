@@ -219,12 +219,22 @@ class StrategyAdviceModule:
             )
             for item, outcome in sorted(classified, key=lambda entry: entry[0].opportunity_id)
         ]
-        positive_label = positives[0][1]
+        positive_labels = [
+            outcome
+            for outcome in _POSITIVE_OUTCOMES
+            if any(entry[1] == outcome for entry in positives)
+        ]
+        weight_changes = "; ".join(
+            f"{name.replace('_', ' ')} from {current_weights[name] * 100:.0f}% "
+            f"to {proposed_weights[name] * 100:.0f}%"
+            for name in current_weights
+            if current_weights[name] != proposed_weights[name]
+        )
         rationale = (
-            f"Recorded {positive_label} outcomes averaged "
+            f"Recorded {_human_list(positive_labels)} outcomes averaged "
             f"{_average_dimension(positives, dimension):.1f} for {dimension.replace('_', ' ')}, "
             f"while rejection outcomes averaged {_average_dimension(negatives, dimension):.1f}. "
-            f"Propose a 5-point weight {direction}; no ranking changes until accepted."
+            f"Proposed weights: {weight_changes}. No ranking changes until accepted."
         )
         return (
             f"ranking:{dimension}:{direction}",
@@ -267,13 +277,10 @@ class StrategyAdviceModule:
 def _classify_outcome(item: WorkflowItem) -> tuple[WorkflowItem, str] | None:
     if item.original_score is None or item.applied_at is None:
         return None
-    outcome_types = {event.outcome_type for event in item.outcomes}
-    for positive in _POSITIVE_OUTCOMES:
-        if positive in outcome_types:
-            return item, positive
-    if "rejection" in outcome_types:
-        return item, "rejection"
-    return None
+    if not item.outcomes:
+        return None
+    latest = max(item.outcomes, key=lambda event: event.occurred_at)
+    return item, latest.outcome_type
 
 
 def _average_dimension(
@@ -302,3 +309,11 @@ def _adjust_weights(
         adjusted[dimension] -= delta
         adjusted[other] += delta
     return {name: round(value, 4) for name, value in adjusted.items()}
+
+
+def _human_list(values: list[str]) -> str:
+    if len(values) == 1:
+        return values[0]
+    if len(values) == 2:
+        return f"{values[0]} and {values[1]}"
+    return f"{', '.join(values[:-1])}, and {values[-1]}"
